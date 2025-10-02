@@ -1,0 +1,15 @@
+# General
+.idea
+.DS_Store
+.AppleDouble
+.LSOverride
+.smbdelete*
+
+# Thumbnails
+._*
+
+# Test files
+composer.lock
+phpunit.xml
+vendor
+.phpunit.result.cache

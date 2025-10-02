@@ -1,0 +1,26 @@
+RewriteEngine On
+
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+ErrorDocument 404 "<H1>Page not found</H1>"
+DirectoryIndex index.php
+
+# Custom pretty URLs - trebuie înainte de regula generală
+
+RewriteRule ^new-orders$ orders.php?type=1 [NC,L]
+RewriteRule ^fake-orders$ orders.php?type=2 [NC,L]
+RewriteRule ^info-([0-9]+)$ tos.php?sid=$1 [NC,L]
+RewriteRule ^plata-card$ plata/card.php [NC,L]
+
+
+
+RewriteRule ^termeni-si-conditii$ /terms.php?id=0 [NC,L]
+RewriteRule ^politica-de-confidentialitate$ /terms.php?id=1 [NC,L]
+
+# Rewrite /something to /something.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^/.]+)$ $1.php [NC,L]
+
+AddType application/octet-stream .torrent
