@@ -49,8 +49,6 @@ $user_id_js = isset($user_id) ? $user_id : 1;
                     <tr>
                         <th>CUI</th>
                         <th>Nume</th>
-                        <th>Reg.Com.</th>
-                        <th>Adresă</th>
                         <th>Acțiuni</th>
                     </tr>
                 </thead>
@@ -73,9 +71,13 @@ $user_id_js = isset($user_id) ? $user_id : 1;
 
 <script>
 const USER_ID = <?= $user_id_js ?>;
+var currentCompanyName = <?= $user_id_js ?>;
+var currentCompanyCUI = <?= $user_id_js ?>;
 </script>
 <script src="js/firms.js"></script>
 <script src="js/firms_invoices.js"></script>
+<script src="js/firms_offers.js"></script>
+<script src="js/firms_contracts.js"></script>
 
 <script>
 // Initialize invoice functionality on page load

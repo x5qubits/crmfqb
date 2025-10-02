@@ -6,20 +6,31 @@ function toNum(v){
   return isNaN(n)?0:n; 
 }
 
-let searchTimer=null, deleteCallback=null, offerItemIndex=0, allOffersData=[], currentCompanyCUI=null, currentCompanyName=null;
+function base64_encode(s) {      
+    return btoa(unescape(encodeURIComponent(s)));
+}
+function base64_decode(s) {      
+    return decodeURIComponent(escape(atob(s)));
+}
+
+let searchTimer=null, deleteCallback=null, offerItemIndex=0, allOffersData=[];
 
 const companiesTable = $('#companiesTable').DataTable({
   responsive:true, lengthChange:false, autoWidth:false, searching:false, paging:false, info:false,
   order:[[1,'asc']],
   language:{url:"//cdn.datatables.net/plug-ins/1.13.4/i18n/ro.json", emptyTable:"Nu s-au găsit companii."},
   columns:[
-    {data:'CUI'},
-    {data:'Name'},
-    {data:'Reg'},
-    {data:'Adress'},
+    {data:'CUI', render: function (data, type, r) {
+        if (type === 'display') return '<a href="#" data-cui="'+r.CUI+'" data-name="'+base64_encode(r.Name)+'" class="view-history">'+data+'</a>';
+        return data;
+      }},
+	{data:'Name', render: function (data, type, r) {
+        if (type === 'display') return '<a href="#" data-cui="'+r.CUI+'" data-name="'+base64_encode(r.Name)+'" class="view-contacts">'+data+'</a>';
+        return data;
+      }},
     {data:null, orderable:false, render:(d)=>{
-      return '<button class="btn btn-xs btn-info view-history" data-cui="'+d.CUI+'" data-name="'+d.Name+'"><i class="fas fa-history"></i></button> '+
-        '<button class="btn btn-xs btn-success view-contacts" data-cui="'+d.CUI+'" data-name="'+d.Name+'"><i class="fas fa-users"></i></button> '+
+      return '<button class="btn btn-xs btn-info view-history" data-cui="'+d.CUI+'" data-name="'+base64_encode(d.Name)+'"><i class="fas fa-history"></i></button> '+
+        '<button class="btn btn-xs btn-success view-contacts" data-cui="'+d.CUI+'" data-name="'+base64_encode(d.Name)+'"><i class="fas fa-users"></i></button> '+
         '<button class="btn btn-xs btn-primary edit-company"><i class="fas fa-edit"></i></button> '+
         '<button class="btn btn-xs btn-danger delete-company" data-cui="'+d.CUI+'"><i class="fas fa-trash"></i></button>';
     }}
@@ -106,44 +117,23 @@ loadAllOffers();
 
 function loadContacts(cui) {
   $('#contactsLoader').show();
-  $.ajax({
-    url: 'api.php?f=get_contacts&user_id='+USER_ID,
-    type: 'POST',
-    data: { company_cui: cui },
-    dataType: 'json'
-  }).done(resp => {
-    $('#contactsLoader').hide();
-    const tbody = $('#contactsTableBody');
-    tbody.empty();
-    
-    if (resp.success && resp.data && resp.data.length) {
-      resp.data.forEach(c => {
-        const roleMap = {0:'Nedefinit',1:'Manager',2:'Director',3:'Principal',4:'Secundar'};
-        tbody.append(`
-          <tr>
-            <td>${c.name}</td>
-            <td>${roleMap[c.role]||'Nedefinit'}</td>
-            <td>${c.phone}</td>
-            <td>${c.email}</td>
-            <td>
-              <button class="btn btn-xs btn-primary edit-contact" data-id="${c.id}"><i class="fas fa-edit"></i></button>
-              <button class="btn btn-xs btn-danger delete-contact" data-id="${c.id}" data-cui="${cui}"><i class="fas fa-trash"></i></button>
-            </td>
-          </tr>
-        `);
+  $('#contactsTableBody').html('<tr><td colspan="5" class="text-center">Se încarcă...</td></tr>');
+  $.ajax({ url:'api.php?f=get_company_details&user_id='+USER_ID+'', type:'GET', data:{cui}, dataType:'json'
+  }).done(resp=>{
+    $('#contactsLoader').hide(); $('#contactsTableBody').empty();
+    if(resp.success && resp.company && resp.company.contacts && resp.company.contacts.length){
+      resp.company.contacts.forEach(c=>{
+        const roleText = c.contact_role==1?'Manager':c.contact_role==2?'Director':c.contact_role==3?'Principal':c.contact_role==4?'Secundar':'Nedefinit';
+        $('#contactsTableBody').append('<tr><td>'+c.contact_name+'</td><td>'+roleText+'</td><td>'+c.contact_phone+'</td><td>'+c.contact_email+'</td><td><button class="btn btn-xs btn-primary edit-contact" data-id="'+c.contact_id+'"><i class="fas fa-edit"></i></button> <button class="btn btn-xs btn-danger delete-contact" data-id="'+c.contact_id+'" data-cui="'+cui+'"><i class="fas fa-trash"></i></button></td></tr>');
       });
-    } else {
-      tbody.html('<tr><td colspan="5" class="text-center">Nu există contacte.</td></tr>');
-    }
-  }).fail(() => {
-    $('#contactsLoader').hide();
-    toastr.error('Eroare la încărcarea contactelor.');
-  });
+    } else $('#contactsTableBody').html('<tr><td colspan="5" class="text-center">Nu există contacte.</td></tr>');
+  }).fail(()=>{ $('#contactsLoader').hide(); toastr.error('Eroare la preluarea contactelor.'); });
 }
+
 
 $(document).on('click','.view-contacts', function(){ 
   currentCompanyCUI=$(this).data('cui'); 
-  currentCompanyName=$(this).data('name'); 
+  currentCompanyName=base64_decode($(this).data('name')); 
   $('#contactsCompanyName').text(currentCompanyName); 
   $('#contactsModal').data('cui', currentCompanyCUI);
   loadContacts(currentCompanyCUI); 
@@ -244,7 +234,7 @@ function loadHistoryData(cui,name){
             '<td>'+ (ct.object?ct.object.substring(0,50)+'...':'') +'</td>'+
             '<td>'+ toNum(ct.total_value).toFixed(2)+' RON</td>'+
             '<td>'+
-              '<button class="btn btn-xs btn-primary edit-contract-history" data-id="'+ct.id+'" data-cui="'+cui+'" data-name="'+name+'"><i class="fas fa-edit"></i></button> '+
+              '<button class="btn btn-xs btn-primary edit-contract-history" data-id="'+ct.id+'" data-cui="'+cui+'" data-name="'+base64_encode(name)+'"><i class="fas fa-edit"></i></button> '+
               '<button class="btn btn-xs btn-success print-contract-history" data-id="'+ct.id+'"><i class="fas fa-print"></i></button> '+
               '<button class="btn btn-xs btn-danger delete-contract-history float-right" data-id="'+ct.id+'"><i class="fas fa-trash"></i></button>'+
             '</td>'+
@@ -275,7 +265,7 @@ function loadHistoryData(cui,name){
             '<td>'+ (of.details?of.details.substring(0,50)+'...':'') +'</td>'+
             '<td>'+ toNum(of.total_value).toFixed(2)+' RON</td>'+
             '<td>'+
-              '<button class="btn btn-xs btn-primary edit-offer-history" data-id="'+of.id+'" data-cui="'+cui+'" data-name="'+name+'"><i class="fas fa-edit"></i></button> '+
+              '<button class="btn btn-xs btn-primary edit-offer-history" data-id="'+of.id+'" data-cui="'+cui+'" data-name="'+base64_encode(name)+'"><i class="fas fa-edit"></i></button> '+
               '<button class="btn btn-xs btn-success print-offer-history" data-id="'+of.id+'"><i class="fas fa-print"></i></button> '+
               '<button class="btn btn-xs btn-danger delete-offer-history float-right" data-id="'+of.id+'"><i class="fas fa-trash"></i></button>'+
             '</td>'+
@@ -291,7 +281,7 @@ function loadHistoryData(cui,name){
 $(document).on('click', '.view-history', function(e) {
   e.preventDefault();
   const cui = $(this).data('cui');
-  const name = $(this).data('name');
+  const name = base64_decode($(this).data('name'));
   
   currentCompanyCUI = cui;
   currentCompanyName = name;
@@ -303,184 +293,6 @@ $(document).on('click', '.view-history', function(e) {
   $('#historyModal').modal('show');
 });
 
-/* ===== CONTRACT FUNCTIONALITY (EXISTING) ===== */
-
-$(document).on('click', '#btnAddContractHistory', function(){
-  $('#contractModalTitle').text('Generează Contract');
-  $('#contract_action').val('add');
-  $('#contractForm')[0].reset();
-  $('#contract_id').val('');
-  $('#contract_company_cui').val(currentCompanyCUI);
-  $('#contract_date').val(new Date().toISOString().split('T')[0]);
-  
-  populateOfferDropdown(currentCompanyCUI);
-  loadContractTemplates();
-  
-  $('#contractModal').modal('show');
-});
-
-function populateOfferDropdown(cui) {
-  const select = $('#contract_offer_id');
-  select.empty().append('<option value="0">--- Fără Ofertă Asociată ---</option>');
-  
-  const relevantOffers = allOffersData.filter(o => o.company_cui == cui);
-  relevantOffers.forEach(of => {
-    select.append(`<option value="${of.id}">Oferta ${of.offer_number} - ${of.offer_date} (${toNum(of.total_value).toFixed(2)} RON)</option>`);
-  });
-}
-
-function loadContractTemplates() {
-  $.get('api.php?f=get_contract_templates&user_id='+USER_ID, function(resp) {
-    const select = $('#contract_template');
-    select.empty().append('<option value="">---</option>');
-    if (resp.success && resp.data) {
-      resp.data.forEach(tpl => {
-        select.append(`<option value="${tpl.id}">${tpl.title}</option>`);
-      });
-    }
-  }, 'json');
-}
-
-$('#contractForm').on('submit', function(e){
-  e.preventDefault();
-  const formData = new FormData(this);
-  
-  $.ajax({
-    url: 'api.php?f=save_contract&user_id='+USER_ID,
-    type: 'POST',
-    data: formData,
-    processData: false,
-    contentType: false,
-    dataType: 'json'
-  }).done(r => {
-    if (r.success) {
-      $('#contractModal').modal('hide');
-      toastr.success('Contract salvat.');
-      loadHistoryData(currentCompanyCUI, currentCompanyName);
-      if (r.id) {
-        showPrintChoice('contract', r.id);
-      }
-    } else {
-      toastr.error(r.error || 'Eroare la salvare.');
-    }
-  });
-});
-
-/* ===== OFFER FUNCTIONALITY (EXISTING) ===== */
-
-$(document).on('click', '#btnAddOfferHistory', function(){
-  $('#offerModalTitle').text('Generează Ofertă');
-  $('#offer_action').val('add');
-  $('#offerForm')[0].reset();
-  $('#offer_id').val('');
-  $('#offer_company_cui').val(currentCompanyCUI);
-  $('#offer_date').val(new Date().toISOString().split('T')[0]);
-  
-  $('#offerItemsTable').empty();
-  offerItemIndex = 0;
-  addOfferItemRow();
-  
-  loadOfferTemplates();
-  calculateOfferTotals();
-  
-  $('#offerModal').modal('show');
-});
-
-function loadOfferTemplates() {
-  $.get('api.php?f=get_offer_templates&user_id='+USER_ID, function(resp) {
-    const select = $('#offer_template');
-    select.empty().append('<option value="">---</option>');
-    if (resp.success && resp.data) {
-      resp.data.forEach(tpl => {
-        select.append(`<option value="${tpl.id}">${tpl.title}</option>`);
-      });
-    }
-  }, 'json');
-}
-
-function addOfferItemRow(desc='', qty=1, price=0) {
-  const idx = offerItemIndex++;
-  const row = $(`
-    <tr class="offer-item-row" data-index="${idx}">
-      <td><input type="text" class="form-control form-control-sm item-desc" name="items[${idx}][description]" value="${desc}" required></td>
-      <td><input type="number" class="form-control form-control-sm item-qty" name="items[${idx}][quantity]" value="${qty}" min="1" required></td>
-      <td><input type="number" class="form-control form-control-sm item-price" name="items[${idx}][unit_price]" value="${price}" step="0.01" min="0" required></td>
-      <td><input type="text" class="form-control form-control-sm item-subtotal" readonly value="0.00"></td>
-      <td><button type="button" class="btn btn-xs btn-danger remove-offer-item"><i class="fas fa-times"></i></button></td>
-    </tr>
-  `);
-  $('#offerItemsTable').append(row);
-  calculateOfferTotals();
-}
-
-$('#addOfferItem').on('click', function(){ addOfferItemRow(); });
-
-$(document).on('click', '.remove-offer-item', function(){
-  $(this).closest('tr').remove();
-  calculateOfferTotals();
-});
-
-$(document).on('input', '.item-qty, .item-price, #offer_discount_value', function(){
-  calculateOfferTotals();
-});
-
-$(document).on('change', '#offer_discount_type', function(){
-  calculateOfferTotals();
-});
-
-function calculateOfferTotals() {
-  let subtotal = 0;
-  
-  $('.offer-item-row').each(function(){
-    const qty = toNum($(this).find('.item-qty').val());
-    const price = toNum($(this).find('.item-price').val());
-    const itemSub = qty * price;
-    $(this).find('.item-subtotal').val(itemSub.toFixed(2));
-    subtotal += itemSub;
-  });
-  
-  const discountType = $('#offer_discount_type').val();
-  const discountValue = toNum($('#offer_discount_value').val());
-  
-  let discountAmount = 0;
-  if (discountType === 'percent') {
-    discountAmount = subtotal * (discountValue / 100);
-  } else {
-    discountAmount = discountValue;
-  }
-  
-  const total = subtotal - discountAmount;
-  
-  $('#offerSubtotal').text(subtotal.toFixed(2) + ' RON');
-  $('#offerDiscountAmount').text(discountAmount.toFixed(2) + ' RON');
-  $('#offerTotal').text(total.toFixed(2) + ' RON');
-}
-
-$('#offerForm').on('submit', function(e){
-  e.preventDefault();
-  const formData = new FormData(this);
-  
-  $.ajax({
-    url: 'api.php?f=save_offer&user_id='+USER_ID,
-    type: 'POST',
-    data: formData,
-    processData: false,
-    contentType: false,
-    dataType: 'json'
-  }).done(r => {
-    if (r.success) {
-      $('#offerModal').modal('hide');
-      toastr.success('Ofertă salvată.');
-      loadHistoryData(currentCompanyCUI, currentCompanyName);
-      loadAllOffers();
-      if (r.id) {
-        showPrintChoice('offer', r.id);
-      }
-    } else {
-      toastr.error(r.error || 'Eroare la salvare.');
-    }
-  });
-});
 
 /* ===== PRINT FUNCTIONALITY ===== */
 
@@ -517,3 +329,31 @@ $(document).on('click', '.print-contract-history', function(){
 $(document).on('click', '.print-offer-history', function(){ 
   printOffer($(this).data('id')); 
 });
+function debounce(fn, ms){ let t; return function(){ clearTimeout(t); t=setTimeout(fn.bind(this, ...arguments), ms); }; }
+
+function fillCompanyFromCIV(resp){
+  if(!resp) return;
+  const d = resp.data || resp;
+  const name = d.Name ?? d.name ?? '';
+  const reg = d.Reg ?? d.reg ?? d.regcom ?? '';
+  const address = d.Adress ?? d.adress ?? d.address ?? '';
+  const cui = d.CUI ?? d.cui ?? d.civ ?? '';
+
+  if (name) $('#company_name').val(name);
+  if (reg) $('#company_reg').val(reg);
+  if (address) $('#company_address').val(address);
+  if (cui && !$('#company_cui').val()) $('#company_cui').val(cui);
+}
+const fetchCIV = debounce(function(){
+  const cui = $('#company_cui').val().replace(/\D+/g,'');
+  if (cui.length < 2) return;
+  $.ajax({
+    url: 'getCIV.php',
+    type: 'POST',
+    dataType: 'json',
+    data: { what: cui }
+  }).done(function(txt){ fillCompanyFromCIV(txt); });
+}, 300);
+
+
+$(document).on('blur', '#company_cui', function(){ fetchCIV.call(this); });

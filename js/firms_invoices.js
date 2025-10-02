@@ -143,6 +143,15 @@ function populateOffersForImport(cui) {
 function populateContractsForImport(cui) {
     $.post('api.php?f=get_contacts&user_id=' + USER_ID, { company_cui: cui }, function(resp) {
         if (resp.success && resp.data) {
+            // FIX #3: Filter only contracts, not all contacts
+            window.availableContracts = Array.isArray(resp.data) ? 
+                resp.data.filter(item => item.contract_number) : [];
+        }
+    }, 'json');
+    
+    // Load actual contracts separately
+    $.post('api.php?f=get_contracts&user_id=' + USER_ID, { company_cui: cui }, function(resp) {
+        if (resp.success && resp.data) {
             window.availableContracts = Array.isArray(resp.data) ? resp.data : [resp.data];
         }
     }, 'json');
@@ -342,7 +351,9 @@ $('#invoiceForm').on('submit', function(e) {
             quantity: qty,
             measuringUnit: unit,
             price: price,
-            vatPercentage: vat
+            vatPercentage: vat,
+            productType: 'Serviciu', // FIX #1: Required by Oblio API
+            code: '' // FIX #1: Empty code is allowed
         });
     });
     
@@ -422,20 +433,71 @@ $(document).on('click', '.view-invoice', function() {
 });
 
 function displayInvoiceDetails(invoice) {
-    const items = typeof invoice.items === 'string' ? JSON.parse(invoice.items) : invoice.items;
+    // Parse items - they should be in invoice.items
+    let items = [];
+    if (invoice.items) {
+        items = typeof invoice.items === 'string' ? JSON.parse(invoice.items) : invoice.items;
+    }
+    
+    // If no items in invoice.items, try to get from oblio_data
+    if ((!items || items.length === 0) && invoice.oblio_data) {
+        try {
+            const oblioData = typeof invoice.oblio_data === 'string' ? 
+                JSON.parse(invoice.oblio_data) : invoice.oblio_data;
+            if (oblioData.products && Array.isArray(oblioData.products)) {
+                items = oblioData.products;
+            }
+        } catch (e) {
+            console.error('Error parsing oblio_data for products:', e);
+        }
+    }
     
     let itemsHtml = '';
     if (items && items.length) {
-        itemsHtml = items.map(item => `
-            <tr>
-                <td>${item.description || item.name}</td>
-                <td class="text-center">${item.quantity}</td>
-                <td class="text-center">${item.unit || item.measuringUnit || 'buc'}</td>
-                <td class="text-right">${parseFloat(item.price).toFixed(2)} RON</td>
-                <td class="text-center">${item.vat || item.vatPercentage}%</td>
-                <td class="text-right">${(item.quantity * item.price * (1 + (item.vat || item.vatPercentage)/100)).toFixed(2)} RON</td>
-            </tr>
-        `).join('');
+        itemsHtml = items.map(item => {
+            // Handle different field names from Oblio
+            const desc = item.description || item.name || '';
+            const qty = item.quantity || 0;
+            const unit = item.unit || item.measuringUnit || 'buc';
+            const price = item.price || 0;
+            const vat = item.vat || item.vatPercentage || 0;
+            const total = qty * price * (1 + vat/100);
+            
+            return `
+                <tr>
+                    <td>${desc}</td>
+                    <td class="text-center">${qty}</td>
+                    <td class="text-center">${unit}</td>
+                    <td class="text-right">${parseFloat(price).toFixed(2)} RON</td>
+                    <td class="text-center">${vat}%</td>
+                    <td class="text-right">${total.toFixed(2)} RON</td>
+                </tr>
+            `;
+        }).join('');
+    } else {
+        itemsHtml = '<tr><td colspan="6" class="text-center">Nu există produse/servicii</td></tr>';
+    }
+    
+    // Parse oblio_data for additional info
+    let oblioInfo = '';
+    if (invoice.oblio_data) {
+        try {
+            const oblioData = typeof invoice.oblio_data === 'string' ? 
+                JSON.parse(invoice.oblio_data) : invoice.oblio_data;
+            
+            if (oblioData.issuerName) {
+                oblioInfo = `
+                    <div class="alert alert-light mt-3">
+                        <h6>Informații Oblio</h6>
+                        <p><strong>Emitent:</strong> ${oblioData.issuerName || ''}<br>
+                        <strong>Serie Oblio:</strong> ${oblioData.seriesName || ''}-${oblioData.number || ''}<br>
+                        <strong>ID Oblio:</strong> ${oblioData.id || ''}</p>
+                    </div>
+                `;
+            }
+        } catch (e) {
+            console.error('Error parsing oblio_data:', e);
+        }
     }
     
     const html = `
@@ -479,15 +541,15 @@ function displayInvoiceDetails(invoice) {
                     <tfoot>
                         <tr>
                             <td colspan="5" class="text-right"><strong>Subtotal:</strong></td>
-                            <td class="text-right">${parseFloat(invoice.subtotal).toFixed(2)} RON</td>
+                            <td class="text-right">${parseFloat(invoice.subtotal || 0).toFixed(2)} RON</td>
                         </tr>
                         <tr>
                             <td colspan="5" class="text-right"><strong>TVA:</strong></td>
-                            <td class="text-right">${parseFloat(invoice.vat).toFixed(2)} RON</td>
+                            <td class="text-right">${parseFloat(invoice.vat || 0).toFixed(2)} RON</td>
                         </tr>
                         <tr class="table-active">
                             <td colspan="5" class="text-right"><strong>TOTAL:</strong></td>
-                            <td class="text-right"><strong>${parseFloat(invoice.total).toFixed(2)} RON</strong></td>
+                            <td class="text-right"><strong>${parseFloat(invoice.total || 0).toFixed(2)} RON</strong></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -496,14 +558,15 @@ function displayInvoiceDetails(invoice) {
             <div class="alert alert-info mt-3">
                 <strong>Status:</strong> ${invoice.status}
             </div>
+            
+            ${oblioInfo}
         </div>
     `;
     
     $('#invoiceDetailsContent').html(html);
-    
     if (invoice.oblio_id) {
         $('#btnDownloadInvoicePdf').attr('href', 
-            `api_oblio_handlers.php?f=download_invoice_pdf&id=${invoice.id}&user_id=` + USER_ID
+            `api_oblio_handlers.php?f=download_invoice_pdf&id=${invoice.id}&user_id=${USER_ID}`
         ).show();
     } else {
         $('#btnDownloadInvoicePdf').hide();

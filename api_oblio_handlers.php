@@ -63,6 +63,20 @@ try {
             $data['cif'] = 'RO' . $settings['cif'];
         }
         
+        // FIX #1: Add required product type for Oblio API
+        foreach ($data['products'] as &$product) {
+            if (!isset($product['productType'])) {
+                $product['productType'] = 'Serviciu'; // Default to Service
+            }
+            if (!isset($product['code'])) {
+                $product['code'] = ''; // Empty code is allowed
+            }
+            if (!isset($product['description'])) {
+                $product['description'] = '';
+            }
+        }
+        unset($product);
+        
         $result = $type === 'proforma' ? $oblio->createProforma($data) : $oblio->createInvoice($data);
         
         if (!$result || !isset($result['seriesName'], $result['number'])) {
@@ -119,8 +133,8 @@ try {
             $subtotal,
             $totalVat,
             $total,
-            json_encode($data['products']),
-            json_encode($result)
+            json_encode($data['products'], JSON_UNESCAPED_UNICODE),
+            json_encode($result, JSON_UNESCAPED_UNICODE)
         ]);
         
         echo json_encode([
@@ -143,6 +157,11 @@ try {
         
         if (!$invoice) {
             throw new Exception('Factura nu a fost gasita');
+        }
+        
+        // FIX #2: Decode oblio_data if it's a string
+        if (isset($invoice['oblio_data']) && is_string($invoice['oblio_data'])) {
+            $invoice['oblio_data_decoded'] = json_decode($invoice['oblio_data'], true);
         }
         
         echo json_encode(['success' => true, 'data' => $invoice]);
@@ -214,8 +233,8 @@ try {
                 $inv['vat'] ?? 0,
                 $inv['total'] ?? 0,
                 $status,
-                json_encode($inv['products'] ?? []),
-                json_encode($inv)
+                json_encode($inv['products'] ?? [], JSON_UNESCAPED_UNICODE),
+                json_encode($inv, JSON_UNESCAPED_UNICODE)
             ]);
             
             $synced++;
@@ -228,7 +247,42 @@ try {
         ]);
         exit;
     }
-    
+if ($f === 'download_invoice_pdf') {
+    try {
+        $id = (int)($_GET['id'] ?? 0);
+        
+        $stmt = $pdo->prepare("SELECT * FROM oblio_invoices WHERE id = ? AND user_id = ?");
+        $stmt->execute([$id, $userId]);
+        $invoice = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$invoice) {
+            http_response_code(404);
+            echo "Factură negăsită";
+            exit;
+        }
+        
+        // Try to get PDF link from Oblio
+        if ($oblio->isConfigured() && $invoice['oblio_id']) {
+            try {
+                $oblioInvoice = $oblio->getInvoice($invoice['series'], (int)$invoice['number']);
+                if (isset($oblioInvoice['link'])) {
+                    header('Location: ' . $oblioInvoice['link']);
+                    exit;
+                }
+            } catch (Exception $e) {
+                error_log("Failed to get Oblio PDF: " . $e->getMessage());
+            }
+        }
+        
+        // Fallback to local print
+        header('Location: print_invoice.php?id=' . $id);
+        exit;
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo "Eroare: " . $e->getMessage();
+        exit;
+    }
+}    
     if ($f === 'import_from_offer') {
         $offerId = (int)($_POST['offer_id'] ?? 0);
         if (!$offerId) {
