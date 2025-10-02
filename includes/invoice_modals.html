@@ -1,0 +1,134 @@
+<!-- Invoice/Proforma Generation Modal -->
+<div class="modal fade" id="invoiceModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-success">
+        <h5 class="modal-title" id="invoiceModalTitle">Generează Factură</h5>
+        <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <form id="invoiceForm">
+        <div class="modal-body">
+          <input type="hidden" id="invoice_type" name="type" value="invoice">
+          <input type="hidden" id="invoice_client_cif" name="client_cif">
+          <input type="hidden" id="invoice_source_type" name="sourceType" value="manual">
+          <input type="hidden" id="invoice_source_id" name="sourceId">
+          
+          <div class="row">
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>Client</label>
+                <input type="text" class="form-control" id="invoice_client_name" readonly>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label>Serie Factură</label>
+                <select class="form-control" id="invoice_series" required>
+                  <option value="FACT">FACT</option>
+                  <option value="PROF">PROF</option>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <div class="form-group">
+                <label>Data Emitere</label>
+                <input type="date" class="form-control" id="invoice_date" required>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-group">
+                <label>Scadență (optional)</label>
+                <input type="date" class="form-control" id="invoice_due_date">
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label>Import din:</label>
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-outline-primary" id="btnImportFromOffer">
+                <i class="fas fa-file-invoice"></i> Ofertă
+              </button>
+              <button type="button" class="btn btn-outline-primary" id="btnImportFromContract">
+                <i class="fas fa-file-contract"></i> Contract
+              </button>
+            </div>
+            <select class="form-control form-control-sm d-inline-block ml-2" id="importSourceSelect" style="width: auto; display: none !important;">
+              <option value="">Selectează...</option>
+            </select>
+          </div>
+          
+          <hr>
+          <h6>Produse/Servicii</h6>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered">
+              <thead>
+                <tr>
+                  <th style="width:35%">Descriere</th>
+                  <th style="width:10%">Cant.</th>
+                  <th style="width:10%">U.M.</th>
+                  <th style="width:15%">Preț</th>
+                  <th style="width:10%">TVA %</th>
+                  <th style="width:15%">Total</th>
+                  <th style="width:5%"></th>
+                </tr>
+              </thead>
+              <tbody id="invoiceItemsTable"></tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="7">
+                    <button type="button" class="btn btn-sm btn-secondary" id="addInvoiceItem">
+                      <i class="fas fa-plus"></i> Adaugă rând
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td colspan="5" class="text-right"><strong>Subtotal:</strong></td>
+                  <td colspan="2"><input type="text" class="form-control form-control-sm" id="invoice_subtotal" readonly value="0.00"></td>
+                </tr>
+                <tr>
+                  <td colspan="5" class="text-right"><strong>TVA:</strong></td>
+                  <td colspan="2"><input type="text" class="form-control form-control-sm" id="invoice_vat" readonly value="0.00"></td>
+                </tr>
+                <tr>
+                  <td colspan="5" class="text-right"><strong>Total:</strong></td>
+                  <td colspan="2"><input type="text" class="form-control form-control-sm font-weight-bold" id="invoice_total" readonly value="0.00"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Anulează</button>
+          <button type="submit" class="btn btn-success" id="btnSaveInvoice">
+            <i class="fas fa-paper-plane"></i> Emite în Oblio
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- View Invoice Details Modal -->
+<div class="modal fade" id="viewInvoiceModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-info">
+        <h5 class="modal-title">Detalii Factură</h5>
+        <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body" id="invoiceDetailsContent">
+        <div class="text-center">
+          <i class="fas fa-spinner fa-spin fa-2x"></i>
+          <p>Se încarcă...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Închide</button>
+        <a href="#" target="_blank" class="btn btn-primary" id="btnDownloadInvoicePdf" style="display:none;">
+          <i class="fas fa-download"></i> Descarcă PDF
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

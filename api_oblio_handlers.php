@@ -1,589 +1,374 @@
 <?php
-require 'config.php';
-require 'db.php';
-$response = array();
-$response['success'] = false;
- header('Content-Type: application/json; charset=utf-8');
-$f = "";
- 
-$user_id = isset($_GET['user_id']) ? (int)$_GET['user_id'] : -1;
-
-if (isset($_GET['f'])) {
-    $f = Z_Secure($_GET['f'], 0);
-}
-/**
- * Oblio API Handlers for api.php
- * Updated for Oblio API 2025
- * This file should be included in api.php AFTER $pdo is defined
- */
-
-// Verify prerequisites
-if (!isset($pdo) || !($pdo instanceof PDO)) {
-    error_log("api_oblio_handlers.php: PDO not available");
-    return;
-}
-
-if (!isset($f) || !isset($user_id)) {
-    return;
-}
-
-// Load Oblio API
+declare(strict_types=1);
+session_start();
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/oblio_api.php';
 
-// Initialize Oblio
+header('Content-Type: application/json');
+
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Not authenticated']);
+    exit;
+}
+
+$userId = (int)$_SESSION['user_id'];
+$f = $_GET['f'] ?? '';
+
 try {
     $oblio = new OblioAPI($pdo);
-} catch (Exception $e) {
-    error_log("Failed to initialize Oblio: " . $e->getMessage());
-    $oblio = null;
-}
-
-// ==================== SETTINGS ====================
-
-if ($f === 'save_oblio_settings') {
-    try {
-        $email = trim($_POST['oblio_email'] ?? '');
-        $secret = trim($_POST['oblio_secret'] ?? '');
-        $company = trim($_POST['oblio_company'] ?? '');
-        $cif = trim($_POST['oblio_cif'] ?? '');
-        
-        if (empty($email) || empty($secret)) {
-            echo json_encode(['success' => false, 'error' => 'Email și Secret sunt obligatorii']);
-            exit;
+    
+    if ($f === 'get_oblio_vat_rates') {
+        $rates = $oblio->getVatRates();
+        echo json_encode(['success' => true, 'data' => $rates]);
+        exit;
+    }
+    
+    if ($f === 'get_oblio_series') {
+        $series = $oblio->getSeries();
+        echo json_encode(['success' => true, 'data' => $series]);
+        exit;
+    }
+    
+    if ($f === 'get_company_invoices') {
+        $companyCui = $_POST['company_cui'] ?? '';
+        if (!$companyCui) {
+            throw new Exception('CUI companie lipseste');
         }
         
-        if (empty($cif)) {
-            echo json_encode(['success' => false, 'error' => 'CIF este obligatoriu']);
-            exit;
-        }
+        $stmt = $pdo->prepare("
+            SELECT * FROM oblio_invoices 
+            WHERE client_cif = ? AND user_id = ?
+            ORDER BY date DESC, created_at DESC
+        ");
+        $stmt->execute([$companyCui, $userId]);
+        $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Remove RO prefix if present
-        $cif = preg_replace('/^RO/i', '', $cif);
-        
-        $oblio->saveSettings($email, $secret, $company, $cif);
-        
-        echo json_encode([
-            'success' => true, 
-            'message' => 'Setări salvate cu succes',
-            'cif' => $cif
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        echo json_encode(['success' => true, 'data' => $invoices]);
+        exit;
     }
-    exit;
-}
-
-if ($f === 'get_oblio_settings') {
-    try {
-        echo json_encode([
-            'success' => true,
-            'data' => $oblio->getSettings()
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-// ==================== NOMENCLATURE ====================
-
-if ($f === 'get_oblio_companies') {
-    try {
-        $companies = $oblio->getCompanies();
-        echo json_encode([
-            'success' => true,
-            'data' => $companies
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'get_oblio_vat_rates') {
-    try {
-        $cif = $_GET['cif'] ?? null;
-        $vatRates = $oblio->getVatRates($cif);
-        echo json_encode([
-            'success' => true,
-            'data' => $vatRates
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'get_oblio_series') {
-    try {
-        $cif = $_GET['cif'] ?? null;
-        $series = $oblio->getSeries($cif);
-        echo json_encode([
-            'success' => true,
-            'data' => $series
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'get_oblio_languages') {
-    try {
-        $cif = $_GET['cif'] ?? null;
-        $languages = $oblio->getLanguages($cif);
-        echo json_encode([
-            'success' => true,
-            'data' => $languages
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'get_oblio_products') {
-    try {
-        $cif = $_GET['cif'] ?? null;
-        $offset = (int)($_GET['offset'] ?? 0);
-        $products = $oblio->getProducts($cif, $offset);
-        echo json_encode([
-            'success' => true,
-            'data' => $products
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-// ==================== CLIENTS ====================
-
-if ($f === 'sync_clients_from_oblio') {
-    try {
-        $synced = $oblio->syncClientsFromOblio();
-        echo json_encode([
-            'success' => true,
-            'synced' => $synced,
-            'message' => "Sincronizat $synced clienți din Oblio"
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'get_oblio_clients') {
-    try {
-        $cif = $_GET['cif'] ?? null;
-        $name = $_GET['name'] ?? null;
-        $clientCif = $_GET['clientCif'] ?? null;
-        $offset = (int)($_GET['offset'] ?? 0);
-        
-        $clients = $oblio->getClients($cif, $name, $clientCif, $offset);
-        echo json_encode([
-            'success' => true,
-            'data' => $clients
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-// ==================== INVOICES ====================
-
-if ($f === 'create_oblio_invoice') {
-    try {
+    
+    if ($f === 'create_oblio_invoice' || $f === 'create_oblio_proforma') {
         $data = json_decode(file_get_contents('php://input'), true);
         
-        if (!$data) {
-            throw new Exception('Date invalide');
+        if (!$data || !isset($data['products']) || empty($data['products'])) {
+            throw new Exception('Date invalide sau produse lipsesc');
         }
         
-        // Ensure CIF is set
+        $type = $f === 'create_oblio_proforma' ? 'proforma' : 'invoice';
+        
+        $settings = $oblio->getSettings();
         if (!isset($data['cif'])) {
-            $settings = $oblio->getSettings();
             $data['cif'] = 'RO' . $settings['cif'];
         }
         
-        $result = $oblio->createInvoice($data);
+        $result = $type === 'proforma' ? $oblio->createProforma($data) : $oblio->createInvoice($data);
+        
+        if (!$result || !isset($result['seriesName'], $result['number'])) {
+            throw new Exception('Raspuns invalid de la Oblio API');
+        }
+        
+        $clientCif = isset($data['client']['cif']) ? str_replace('RO', '', $data['client']['cif']) : '';
+        $clientName = $data['client']['name'] ?? '';
+        
+        $subtotal = 0;
+        $totalVat = 0;
+        foreach ($data['products'] as $item) {
+            $itemSubtotal = $item['quantity'] * $item['price'];
+            $itemVat = $itemSubtotal * ($item['vatPercentage'] / 100);
+            $subtotal += $itemSubtotal;
+            $totalVat += $itemVat;
+        }
+        $total = $subtotal + $totalVat;
+        
+        $sourceType = $data['sourceType'] ?? 'manual';
+        $sourceId = $data['sourceId'] ?? null;
+        
+        $stmt = $pdo->prepare("
+            INSERT INTO oblio_invoices (
+                user_id, company_cui, source_type, source_id, oblio_id, type, series, number, 
+                date, due_date, client_name, client_cif, subtotal, vat, total, status, items, oblio_data
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sent', ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                oblio_id = VALUES(oblio_id),
+                client_name = VALUES(client_name),
+                client_cif = VALUES(client_cif),
+                subtotal = VALUES(subtotal),
+                vat = VALUES(vat),
+                total = VALUES(total),
+                status = VALUES(status),
+                items = VALUES(items),
+                oblio_data = VALUES(oblio_data),
+                updated_at = CURRENT_TIMESTAMP
+        ");
+        
+        $stmt->execute([
+            $userId,
+            $settings['cif'],
+            $sourceType,
+            $sourceId,
+            $result['id'] ?? null,
+            $type,
+            $result['seriesName'],
+            $result['number'],
+            $data['issueDate'],
+            $data['dueDate'] ?? null,
+            $clientName,
+            $clientCif,
+            $subtotal,
+            $totalVat,
+            $total,
+            json_encode($data['products']),
+            json_encode($result)
+        ]);
         
         echo json_encode([
             'success' => true,
             'data' => $result,
-            'message' => 'Factură creată cu succes'
+            'message' => ($type === 'proforma' ? 'Proformă' : 'Factură') . ' creată cu succes'
         ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        exit;
     }
-    exit;
-}
-
-if ($f === 'create_oblio_proforma') {
-    try {
-        $data = json_decode(file_get_contents('php://input'), true);
-        
-        if (!$data) {
-            throw new Exception('Date invalide');
+    
+    if ($f === 'get_invoice_details') {
+        $id = (int)($_POST['id'] ?? 0);
+        if (!$id) {
+            throw new Exception('ID lipseste');
         }
         
-        // Ensure CIF is set
-        if (!isset($data['cif'])) {
-            $settings = $oblio->getSettings();
-            $data['cif'] = 'RO' . $settings['cif'];
+        $stmt = $pdo->prepare("SELECT * FROM oblio_invoices WHERE id = ? AND user_id = ?");
+        $stmt->execute([$id, $userId]);
+        $invoice = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$invoice) {
+            throw new Exception('Factura nu a fost gasita');
         }
         
-        $result = $oblio->createProforma($data);
-        
-        echo json_encode([
-            'success' => true,
-            'data' => $result,
-            'message' => 'Proformă creată cu succes'
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        echo json_encode(['success' => true, 'data' => $invoice]);
+        exit;
     }
-    exit;
-}
-
-if ($f === 'get_oblio_invoice') {
-    try {
-        $seriesName = $_GET['series'] ?? '';
-        $number = (int)($_GET['number'] ?? 0);
-        $cif = $_GET['cif'] ?? null;
+    
+    if ($f === 'cancel_oblio_invoice') {
+        $series = $_POST['series'] ?? '';
+        $number = (int)($_POST['number'] ?? 0);
         
-        if (!$seriesName || !$number) {
-            throw new Exception('Serie și număr sunt obligatorii');
+        if (!$series || !$number) {
+            throw new Exception('Serie si numar sunt obligatorii');
         }
         
-        $invoice = $oblio->getInvoice($seriesName, $number, $cif);
+        $result = $oblio->cancelInvoice($series, $number);
         
-        echo json_encode([
-            'success' => true,
-            'data' => $invoice
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        $stmt = $pdo->prepare("
+            UPDATE oblio_invoices 
+            SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP 
+            WHERE series = ? AND number = ? AND user_id = ?
+        ");
+        $stmt->execute([$series, $number, $userId]);
+        
+        echo json_encode(['success' => true, 'data' => $result]);
+        exit;
     }
-    exit;
-}
-
-if ($f === 'list_oblio_invoices') {
-    try {
+    
+    if ($f === 'sync_invoices_from_oblio') {
+        $year = isset($_POST['year']) ? (int)$_POST['year'] : (int)date('Y');
+        
+        $settings = $oblio->getSettings();
         $filters = [];
-        
-        // Parse filters from GET/POST
-        if (isset($_REQUEST['seriesName'])) $filters['seriesName'] = $_REQUEST['seriesName'];
-        if (isset($_REQUEST['number'])) $filters['number'] = (int)$_REQUEST['number'];
-        if (isset($_REQUEST['year'])) {
-            $year = (int)$_REQUEST['year'];
-            $filters['issuedAfter'] = "$year-01-01";
-            $filters['issuedBefore'] = "$year-12-31";
-        }
-        if (isset($_REQUEST['month'])) {
-            $month = (int)$_REQUEST['month'];
-            $year = (int)($_REQUEST['year'] ?? date('Y'));
-            $filters['issuedAfter'] = sprintf('%04d-%02d-01', $year, $month);
-            $lastDay = cal_days_in_month(CAL_GREGORIAN, $month, $year);
-            $filters['issuedBefore'] = sprintf('%04d-%02d-%02d', $year, $month, $lastDay);
-        }
-        if (isset($_REQUEST['issuedAfter'])) $filters['issuedAfter'] = $_REQUEST['issuedAfter'];
-        if (isset($_REQUEST['issuedBefore'])) $filters['issuedBefore'] = $_REQUEST['issuedBefore'];
-        if (isset($_REQUEST['draft'])) $filters['draft'] = (int)$_REQUEST['draft'];
-        if (isset($_REQUEST['canceled'])) $filters['canceled'] = (int)$_REQUEST['canceled'];
-        if (isset($_REQUEST['limitPerPage'])) $filters['limitPerPage'] = min(100, (int)$_REQUEST['limitPerPage']);
-        if (isset($_REQUEST['offset'])) $filters['offset'] = (int)$_REQUEST['offset'];
+        $filters['issuedAfter'] = "$year-01-01";
+        $filters['issuedBefore'] = "$year-12-31";
         
         $invoices = $oblio->listInvoices($filters);
         
-        echo json_encode([
-            'success' => true,
-            'data' => $invoices,
-            'count' => count($invoices)
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'cancel_oblio_invoice') {
-    try {
-        $seriesName = $_POST['series'] ?? '';
-        $number = (int)($_POST['number'] ?? 0);
-        $cif = $_POST['cif'] ?? null;
-        
-        if (!$seriesName || !$number) {
-            throw new Exception('Serie și număr sunt obligatorii');
+        $synced = 0;
+        foreach ($invoices as $inv) {
+            $clientCif = isset($inv['client']['cif']) ? str_replace('RO', '', $inv['client']['cif']) : '';
+            
+            $stmt = $pdo->prepare("
+                INSERT INTO oblio_invoices (
+                    user_id, company_cui, oblio_id, type, series, number, date, due_date,
+                    client_name, client_cif, subtotal, vat, total, status, items, oblio_data
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE 
+                    oblio_id = VALUES(oblio_id),
+                    status = VALUES(status),
+                    oblio_data = VALUES(oblio_data),
+                    updated_at = CURRENT_TIMESTAMP
+            ");
+            
+            $type = 'invoice';
+            $status = ($inv['cancelled'] ?? false) ? 'cancelled' : 'sent';
+            
+            $stmt->execute([
+                $userId,
+                $settings['cif'],
+                $inv['id'] ?? null,
+                $type,
+                $inv['seriesName'],
+                $inv['number'],
+                $inv['issueDate'],
+                $inv['dueDate'] ?? null,
+                $inv['client']['name'] ?? '',
+                $clientCif,
+                $inv['subtotal'] ?? 0,
+                $inv['vat'] ?? 0,
+                $inv['total'] ?? 0,
+                $status,
+                json_encode($inv['products'] ?? []),
+                json_encode($inv)
+            ]);
+            
+            $synced++;
         }
         
-        $result = $oblio->cancelInvoice($seriesName, $number, $cif);
-        
         echo json_encode([
             'success' => true,
-            'data' => $result,
-            'message' => 'Factură anulată cu succes'
+            'message' => "Sincronizate $synced facturi",
+            'synced' => $synced
         ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'restore_oblio_invoice') {
-    try {
-        $seriesName = $_POST['series'] ?? '';
-        $number = (int)($_POST['number'] ?? 0);
-        $cif = $_POST['cif'] ?? null;
-        
-        if (!$seriesName || !$number) {
-            throw new Exception('Serie și număr sunt obligatorii');
-        }
-        
-        $result = $oblio->restoreInvoice($seriesName, $number, $cif);
-        
-        echo json_encode([
-            'success' => true,
-            'data' => $result,
-            'message' => 'Factură restaurată cu succes'
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-if ($f === 'get_company_invoices') {
-    try {
-        $companyCui = (int)($_POST['company_cui'] ?? $_GET['company_cui'] ?? 0);
-        
-        if (!$companyCui) {
-            echo json_encode(['success' => false, 'error' => 'CUI companie lipsă']);
-            exit;
-        }
-        
-        $query = "SELECT * FROM oblio_invoices WHERE user_id = ? AND client_cif = ? ";
-        $params = [$user_id, $companyCui];
-        
-        $query .= "ORDER BY date DESC, number DESC";
-        
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
-        $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        echo json_encode([
-            'success' => true,
-            'data' => $invoices
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-if ($f === 'delete_oblio_invoice') {
-    try {
-        $seriesName = $_POST['series'] ?? '';
-        $number = (int)($_POST['number'] ?? 0);
-        $cif = $_POST['cif'] ?? null;
-        
-        if (!$seriesName || !$number) {
-            throw new Exception('Serie și număr sunt obligatorii');
-        }
-        
-        $result = $oblio->deleteInvoice($seriesName, $number, $cif);
-        
-        echo json_encode([
-            'success' => true,
-            'data' => $result,
-            'message' => 'Factură ștearsă cu succes'
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'collect_oblio_invoice') {
-    try {
-        $seriesName = $_POST['series'] ?? '';
-        $number = (int)($_POST['number'] ?? 0);
-        $cif = $_POST['cif'] ?? null;
-        
-        $collectData = [
-            'type' => $_POST['collect_type'] ?? 'Ordin de plata',
-            'documentNumber' => $_POST['document_number'] ?? '',
-            'value' => isset($_POST['value']) ? (float)$_POST['value'] : null,
-            'issueDate' => $_POST['issue_date'] ?? date('Y-m-d')
-        ];
-        
-        if (!$seriesName || !$number) {
-            throw new Exception('Serie și număr sunt obligatorii');
-        }
-        
-        $result = $oblio->collectInvoice($seriesName, $number, $collectData, $cif);
-        
-        echo json_encode([
-            'success' => true,
-            'data' => $result,
-            'message' => 'Încasare înregistrată cu succes'
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'sync_invoices_from_oblio') {
-    try {
-        $year = isset($_POST['year']) ? (int)$_POST['year'] : date('Y');
-        $month = isset($_POST['month']) ? (int)$_POST['month'] : null;
-        
-        $synced = $oblio->syncInvoicesFromOblio($year, $month);
-        
-        echo json_encode([
-            'success' => true,
-            'synced' => $synced,
-            'message' => "Sincronizate $synced facturi din Oblio"
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-// ==================== E-INVOICE (SPV) ====================
-
-if ($f === 'send_einvoice_to_spv') {
-    try {
-        $seriesName = $_POST['series'] ?? '';
-        $number = (int)($_POST['number'] ?? 0);
-        $cif = $_POST['cif'] ?? null;
-        
-        if (!$seriesName || !$number) {
-            throw new Exception('Serie și număr sunt obligatorii');
-        }
-        
-        $result = $oblio->sendEInvoice($seriesName, $number, $cif);
-        
-        echo json_encode([
-            'success' => true,
-            'data' => $result,
-            'message' => $result['text'] ?? 'e-Factură trimisă în SPV'
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'download_einvoice_archive') {
-    try {
-        $seriesName = $_GET['series'] ?? '';
-        $number = (int)($_GET['number'] ?? 0);
-        $cif = $_GET['cif'] ?? null;
-        
-        if (!$seriesName || !$number) {
-            throw new Exception('Serie și număr sunt obligatorii');
-        }
-        
-        $downloadUrl = $oblio->downloadEInvoiceArchive($seriesName, $number, $cif);
-        
-        // Redirect to download URL
-        header('Location: ' . $downloadUrl);
-        exit;
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo "Eroare: " . $e->getMessage();
         exit;
     }
-}
-
-// ==================== LOCAL DATABASE ====================
-
-if ($f === 'get_local_invoices') {
-    try {
-        $companyCui = $_POST['company_cui'] ?? $_GET['company_cui'] ?? '';
-        
-        $query = "SELECT * FROM oblio_invoices WHERE user_id = ? ";
-        $params = [$user_id];
-        
-        if ($companyCui) {
-            $query .= "AND company_cui = ? ";
-            $params[] = $companyCui;
+    
+    if ($f === 'import_from_offer') {
+        $offerId = (int)($_POST['offer_id'] ?? 0);
+        if (!$offerId) {
+            throw new Exception('ID oferta lipseste');
         }
         
-        $query .= "ORDER BY date DESC, number DESC LIMIT 100";
+        $stmt = $pdo->prepare("
+            SELECT o.*, oi.description, oi.quantity, oi.unit_price 
+            FROM offers o
+            LEFT JOIN offer_items oi ON o.id = oi.offer_id
+            WHERE o.id = ? AND o.user_id = ?
+        ");
+        $stmt->execute([$offerId, $userId]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
-        $invoices = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        echo json_encode([
-            'success' => true,
-            'data' => $invoices
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'get_invoice_details') {
-    try {
-        $id = (int)($_POST['id'] ?? $_GET['id'] ?? 0);
-        
-        $stmt = $pdo->prepare("SELECT * FROM oblio_invoices WHERE id = ? AND user_id = ?");
-        $stmt->execute([$id, $user_id]);
-        $invoice = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$invoice) {
-            throw new Exception('Factură negăsită');
+        if (!$rows) {
+            throw new Exception('Oferta nu a fost gasita');
         }
         
-        echo json_encode([
-            'success' => true,
-            'data' => $invoice
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
-
-if ($f === 'download_invoice_pdf') {
-    try {
-        $id = (int)($_GET['id'] ?? 0);
+        $offer = $rows[0];
+        $items = [];
         
-        $stmt = $pdo->prepare("SELECT * FROM oblio_invoices WHERE id = ? AND user_id = ?");
-        $stmt->execute([$id, $user_id]);
-        $invoice = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$invoice) {
-            http_response_code(404);
-            echo "Factură negăsită";
-            exit;
-        }
-        
-        // Try to get PDF link from Oblio
-        if ($oblio->isConfigured() && $invoice['oblio_id']) {
-            try {
-                $oblioInvoice = $oblio->getInvoice($invoice['series'], (int)$invoice['number']);
-                if (isset($oblioInvoice['link'])) {
-                    header('Location: ' . $oblioInvoice['link']);
-                    exit;
-                }
-            } catch (Exception $e) {
-                error_log("Failed to get Oblio PDF: " . $e->getMessage());
+        foreach ($rows as $row) {
+            if ($row['description']) {
+                $items[] = [
+                    'description' => $row['description'],
+                    'quantity' => (float)$row['quantity'],
+                    'price' => (float)$row['unit_price']
+                ];
             }
         }
         
-        // Fallback to local print
-        header('Location: print_invoice.php?id=' . $id);
-        exit;
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo "Eroare: " . $e->getMessage();
+        $stmt = $pdo->prepare("SELECT Name, Adress FROM companies WHERE CUI = ?");
+        $stmt->execute([$offer['company_cui']]);
+        $company = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'success' => true,
+            'data' => [
+                'client_cif' => $offer['company_cui'],
+                'client_name' => $company['Name'] ?? '',
+                'client_address' => $company['Adress'] ?? '',
+                'items' => $items,
+                'sourceType' => 'offer',
+                'sourceId' => $offerId
+            ]
+        ]);
         exit;
     }
+    
+    if ($f === 'import_from_contract') {
+        $contractId = (int)($_POST['contract_id'] ?? 0);
+        if (!$contractId) {
+            throw new Exception('ID contract lipseste');
+        }
+        
+        $stmt = $pdo->prepare("
+            SELECT c.*, o.id as offer_id
+            FROM contracts c
+            LEFT JOIN offers o ON c.offer_id = o.id
+            WHERE c.id = ? AND c.user_id = ?
+        ");
+        $stmt->execute([$contractId, $userId]);
+        $contract = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$contract) {
+            throw new Exception('Contractul nu a fost gasit');
+        }
+        
+        $items = [];
+        if ($contract['offer_id']) {
+            $stmt = $pdo->prepare("
+                SELECT description, quantity, unit_price 
+                FROM offer_items 
+                WHERE offer_id = ?
+            ");
+            $stmt->execute([$contract['offer_id']]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($rows as $row) {
+                $items[] = [
+                    'description' => $row['description'],
+                    'quantity' => (float)$row['quantity'],
+                    'price' => (float)$row['unit_price']
+                ];
+            }
+        } else {
+            $items[] = [
+                'description' => $contract['object'] ?? 'Servicii conform contract',
+                'quantity' => 1,
+                'price' => (float)($contract['total_value'] ?? 0)
+            ];
+        }
+        
+        $stmt = $pdo->prepare("SELECT Name, Adress FROM companies WHERE CUI = ?");
+        $stmt->execute([$contract['company_cui']]);
+        $company = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        echo json_encode([
+            'success' => true,
+            'data' => [
+                'client_cif' => $contract['company_cui'],
+                'client_name' => $company['Name'] ?? '',
+                'client_address' => $company['Adress'] ?? '',
+                'items' => $items,
+                'sourceType' => 'contract',
+                'sourceId' => $contractId
+            ]
+        ]);
+        exit;
+    }
+    
+    if ($f === 'get_company_settings') {
+        $cui = $_POST['cui'] ?? '';
+        if (!$cui) {
+            throw new Exception('CUI lipseste');
+        }
+        
+        $stmt = $pdo->prepare("
+            SELECT vat_payer, default_invoice_series, default_proforma_series 
+            FROM companies 
+            WHERE CUI = ?
+        ");
+        $stmt->execute([$cui]);
+        $settings = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$settings) {
+            $settings = [
+                'vat_payer' => 1,
+                'default_invoice_series' => 'FACT',
+                'default_proforma_series' => 'PROF'
+            ];
+        }
+        
+        echo json_encode(['success' => true, 'data' => $settings]);
+        exit;
+    }
+    
+    echo json_encode(['success' => false, 'error' => 'Functie necunoscuta: ' . $f]);
+    
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
-?>

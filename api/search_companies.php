@@ -1,7 +1,7 @@
 <?php
 // runs inside api.php, has $pdo and $user_id
 
-$search = trim($_POST['search'] ?? '');
+$search = trim($_POST['term'] ?? '');
 
 try {
     $sql = "

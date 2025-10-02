@@ -1,0 +1,453 @@
+<!-- Modal Add/Edit Company -->
+<div class="modal fade" id="companyModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="companyModalTitle">Adaugă Companie</h5>
+                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+            </div>
+            <form id="companyForm">
+                <div class="modal-body">
+                    <input type="hidden" id="company_action" name="action" value="add">
+                    <input type="hidden" id="company_cui_old" name="cui_old" value="">
+                    
+                    <div class="form-group">
+                        <label>CUI *</label>
+                        <input type="number" class="form-control" id="company_cui" name="cui" required>
+                        <small class="form-text text-muted">Introduceți CUI pentru a auto-completa datele.</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Reg.Com.</label>
+                        <input type="text" class="form-control" id="company_reg" name="reg">
+                    </div>
+                    <div class="form-group">
+                        <label>Nume *</label>
+                        <input type="text" class="form-control" id="company_name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Adresă *</label>
+                        <textarea class="form-control" id="company_address" name="address" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Anulează</button>
+                    <button type="submit" class="btn btn-primary">Salvează</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Contacts -->
+<div class="modal fade" id="contactsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Contacte pentru <span id="contactsCompanyName"></span></h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <button type="button" class="btn btn-sm btn-success mb-3" id="btnAddContact">
+          <i class="fas fa-plus"></i> Adaugă Contact
+        </button>
+        <div id="contactsLoader" class="overlay" style="display:none;">
+          <i class="fas fa-2x fa-sync-alt fa-spin"></i>
+        </div>
+        <table id="contactsTable" class="table table-bordered table-sm">
+          <thead>
+            <tr>
+              <th>Nume</th>
+              <th>Rol</th>
+              <th>Telefon</th>
+              <th>Email</th>
+              <th>Acțiuni</th>
+            </tr>
+          </thead>
+          <tbody id="contactsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Contact Add/Edit -->
+<div class="modal fade" id="contactModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="contactModalTitle">Adaugă Contact</h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <form id="contactForm">
+        <div class="modal-body">
+          <input type="hidden" id="contact_action" name="action" value="add">
+          <input type="hidden" id="contact_id" name="id" value="">
+          <input type="hidden" id="contact_company" name="companie" value="">
+          
+          <div class="form-group">
+            <label>Nume *</label>
+            <input type="text" class="form-control" id="contact_name" name="name" required>
+          </div>
+          <div class="form-group">
+            <label>Rol</label>
+            <select class="form-control" id="contact_role" name="role">
+              <option value="0">Nedefinit</option>
+              <option value="1">Manager</option>
+              <option value="2">Director</option>
+              <option value="3">Contact Principal</option>
+              <option value="4">Contact Secundar</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Telefon *</label>
+            <input type="text" class="form-control" id="contact_phone" name="phone">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" class="form-control" id="contact_email" name="email">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Anulează</button>
+          <button type="submit" class="btn btn-primary">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- Modal Add/Edit Contract -->
+<div class="modal fade" id="contractModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="contractModalTitle">Generează Contract</h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+
+      <form id="contractForm">
+        <div class="modal-body">
+          <input type="hidden" id="contract_action" name="action" value="add">
+          <input type="hidden" id="contract_id" name="id">
+          <input type="hidden" id="contract_company_cui" name="company_cui">
+
+          <div class="form-group">
+            <label for="contract_offer_id">Asociază cu Oferta</label>
+            <select class="form-control" id="contract_offer_id" name="offer_id">
+              <option value="0">--- Fără Ofertă Asociată ---</option>
+            </select>
+            <small class="form-text text-muted">Obiectul și valoarea pot fi preluate automat.</small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="contract_number">Număr Contract *</label>
+              <input type="text" class="form-control" id="contract_number" name="contract_number" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label for="contract_date">Data *</label>
+              <input type="date" class="form-control" id="contract_date" name="contract_date" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="contract_object">Obiect Contract *</label>
+            <textarea class="form-control" id="contract_object" name="object" rows="2" required></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="contract_total_value">Valoare Totală (RON)</label>
+              <input type="number" step="0.01" min="0" class="form-control" id="contract_total_value" name="total_value">
+            </div>
+            <div class="form-group col-md-6">
+              <label for="contract_duration">Durată (luni)</label>
+              <input type="number" class="form-control" id="contract_duration" name="duration_months" value="12">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="contract_special_clauses">Clauze Speciale</label>
+            <textarea class="form-control" id="contract_special_clauses" name="special_clauses" rows="2"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="contract_template">Selectează Template</label>
+            <select class="form-control" id="contract_template">
+              <option value="">---</option>
+            </select>
+            <small class="text-muted">Selectați un template de contract existent.</small>
+          </div>
+
+          <div class="form-group">
+            <label for="contract_vat_series">Serie Factură TVA</label>
+            <input type="text" class="form-control" id="contract_vat_series" name="vat_series" value="FACT">
+            <small class="text-muted">Seria de facturi care va fi folosită pentru acest contract.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Anulează</button>
+          <button type="submit" class="btn btn-success">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Add/Edit Offer -->
+<div class="modal fade" id="offerModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="offerModalTitle">Generează Ofertă</h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <form id="offerForm">
+        <div class="modal-body">
+          <input type="hidden" id="offer_action" name="action" value="add">
+          <input type="hidden" id="offer_id" name="id">
+          <input type="hidden" id="offer_company_cui" name="company_cui">
+
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="offer_number">Număr Ofertă *</label>
+              <input type="text" class="form-control" id="offer_number" name="offer_number" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label for="offer_date">Data *</label>
+              <input type="date" class="form-control" id="offer_date" name="offer_date" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="offer_details">Detalii Ofertă</label>
+            <textarea class="form-control" id="offer_details" name="details" rows="2"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="offer_template">Selectează Template</label>
+            <select class="form-control" id="offer_template">
+              <option value="">---</option>
+            </select>
+            <small class="text-muted">Selectați un template de ofertă existent.</small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-4">
+              <label for="offer_discount_type">Tip Discount</label>
+              <select class="form-control" id="offer_discount_type" name="discount_type">
+                <option value="percent">Procent</option>
+                <option value="fixed">Fix (RON)</option>
+              </select>
+            </div>
+            <div class="form-group col-md-4">
+              <label for="offer_discount_value">Valoare Discount</label>
+              <input type="number" step="0.01" min="0" class="form-control" id="offer_discount_value" name="discount_value" value="0">
+            </div>
+            <div class="form-group col-md-4">
+              <label for="offer_vat_series">Serie Factură TVA</label>
+              <input type="text" class="form-control" id="offer_vat_series" name="vat_series" value="FACT">
+            </div>
+          </div>
+
+          <hr>
+          <h6>Produse/Servicii</h6>
+          <table class="table table-sm table-bordered">
+            <thead>
+              <tr>
+                <th style="width:50%">Descriere</th>
+                <th style="width:15%">Cant.</th>
+                <th style="width:20%">Preț Unitar (RON)</th>
+                <th style="width:10%">Subtotal</th>
+                <th style="width:5%"></th>
+              </tr>
+            </thead>
+            <tbody id="offerItemsTable"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="5">
+                  <button type="button" class="btn btn-sm btn-secondary" id="addOfferItem">+ Adaugă rând</button>
+                </td>
+              </tr>
+              <tr class="table-active">
+                <td colspan="3" class="text-right"><strong>Total fără discount:</strong></td>
+                <td colspan="2" id="offerSubtotal">0.00 RON</td>
+              </tr>
+              <tr>
+                <td colspan="3" class="text-right"><strong>Discount:</strong></td>
+                <td colspan="2" id="offerDiscountAmount">0.00 RON</td>
+              </tr>
+              <tr class="table-info">
+                <td colspan="3" class="text-right"><strong>TOTAL:</strong></td>
+                <td colspan="2"><strong id="offerTotal">0.00 RON</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Anulează</button>
+          <button type="submit" class="btn btn-success">Salvează</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- Modal Istoric -->
+<div class="modal fade" id="historyModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-dark">
+        <h5 class="modal-title">Istoric pentru <span id="historyCompanyName"></span></h5>
+        <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <ul class="nav nav-tabs" id="historyTab" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active" id="contracts-tab" data-toggle="tab" href="#contracts-list" role="tab">
+              Contracte (<span id="contractCount">0</span>)
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="offers-tab" data-toggle="tab" href="#offers-list" role="tab">
+              Oferte (<span id="offerCount">0</span>)
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="invoices-tab" data-toggle="tab" href="#invoices-list" role="tab">
+              Facturi & Proforma (<span id="invoiceCount">0</span>)
+            </a>
+          </li>
+        </ul>
+        <div class="tab-content pt-3" id="historyTabContent">
+          <!-- Contracts Tab -->
+          <div class="tab-pane fade show active" id="contracts-list" role="tabpanel">
+            <button type="button" class="btn btn-sm btn-success mb-3" id="btnAddContractHistory">
+              <i class="fas fa-plus"></i> Adaugă Contract
+            </button>
+            <div class="table-responsive">
+              <table class="table table-bordered table-sm table-striped">
+                <thead>
+                  <tr>
+                    <th>Nr.Contract</th>
+                    <th>Data</th>
+                    <th>Obiect</th>
+                    <th>Valoare</th>
+                    <th>Acțiuni</th>
+                  </tr>
+                </thead>
+                <tbody id="contractsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Offers Tab -->
+          <div class="tab-pane fade" id="offers-list" role="tabpanel">
+            <button type="button" class="btn btn-sm btn-warning mb-3" id="btnAddOfferHistory">
+              <i class="fas fa-plus"></i> Adaugă Ofertă
+            </button>
+            <div class="table-responsive">
+              <table class="table table-bordered table-sm table-striped">
+                <thead>
+                  <tr>
+                    <th>Nr.Ofertă</th>
+                    <th>Data</th>
+                    <th>Detalii</th>
+                    <th>Valoare</th>
+                    <th>Acțiuni</th>
+                  </tr>
+                </thead>
+                <tbody id="offersTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- Invoices Tab - NEW -->
+          <div class="tab-pane fade" id="invoices-list" role="tabpanel">
+            <div class="mb-3">
+              <button type="button" class="btn btn-sm btn-success" id="btnAddInvoiceHistory">
+                <i class="fas fa-plus"></i> Generează Factură
+              </button>
+              <button type="button" class="btn btn-sm btn-info" id="btnAddProformaHistory">
+                <i class="fas fa-plus"></i> Generează Proformă
+              </button>
+              <button type="button" class="btn btn-sm btn-primary" id="btnSyncOblioInvoices">
+                <i class="fas fa-sync"></i> Sincronizează din Oblio
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-bordered table-sm table-striped">
+                <thead>
+                  <tr>
+                    <th>Tip</th>
+                    <th>Serie/Nr.</th>
+                    <th>Data</th>
+                    <th>Scadență</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Acțiuni</th>
+                  </tr>
+                </thead>
+                <tbody id="invoicesTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Print Choice Modal -->
+<div class="modal fade" id="printChoiceModal" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title">Tipărire?</h6>
+        <button type="button" class="close" data-dismiss="modal"><span>×</span></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2" id="printChoiceText">Doriți să tipăriți?</p>
+        <div class="d-flex justify-content-center gap-2">
+          <button type="button" class="btn btn-primary btn-sm mr-2" id="printOfferBtn">Printează Ofertă</button>
+          <button type="button" class="btn btn-success btn-sm" id="printContractBtn">Printează Contract</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-danger">
+        <h5 class="modal-title">Confirmare Ștergere</h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteMessage">Ești sigur că vrei să ștergi?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Anulează</button>
+        <button type="button" class="btn btn-danger" id="confirmDelete">Șterge</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Contact Delete Modal -->
+<div class="modal fade" id="confirmContactDelete" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h6 class="modal-title">Ștergere contact</h6>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">Sigur doriți să ștergeți acest contact?</div>
+      <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Nu</button>
+        <button type="button" class="btn btn-danger btn-sm" id="confirmContactDeleteBtn">Da</button>
+      </div>
+    </div>
+  </div>
+</div>
