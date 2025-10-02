@@ -394,7 +394,17 @@ if ($f === 'download_invoice_pdf') {
         ]);
         exit;
     }
-    
+if ($f === 'get_oblio_settings') {
+    try {
+        echo json_encode([
+            'success' => true,
+            'data' => $oblio->getSettings()
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
     if ($f === 'get_company_settings') {
         $cui = $_POST['cui'] ?? '';
         if (!$cui) {
