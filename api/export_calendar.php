@@ -63,6 +63,7 @@ try {
     $response['success'] = true;
     $response['filename'] = $filename;
     $response['file_url'] = $fileUrl;
+    $response['event_count'] = count($events);
     
 } catch (Exception $e) {
     $response['error'] = $e->getMessage();
@@ -73,10 +74,11 @@ function exportToICS($events, $filePath) {
     $icsContent .= "VERSION:2.0\r\n";
     $icsContent .= "PRODID:-//Calendar Export//EN\r\n";
     $icsContent .= "CALSCALE:GREGORIAN\r\n";
+    $icsContent .= "METHOD:PUBLISH\r\n";
     
     foreach($events as $event) {
         $icsContent .= "BEGIN:VEVENT\r\n";
-        $icsContent .= "UID:" . ($event['uid'] ?? uniqid()) . "\r\n";
+        $icsContent .= "UID:" . ($event['uid'] ?? 'event-' . $event['id'] . '@calendar') . "\r\n";
         $icsContent .= "DTSTAMP:" . gmdate('Ymd\THis\Z') . "\r\n";
         $icsContent .= "DTSTART:" . convertToICSDateTime($event['start'], $event['all_day']) . "\r\n";
         
@@ -86,16 +88,29 @@ function exportToICS($events, $filePath) {
         
         $icsContent .= "SUMMARY:" . escapeICSText($event['title']) . "\r\n";
         
-        if ($event['description']) {
+        if (!empty($event['description'])) {
             $icsContent .= "DESCRIPTION:" . escapeICSText($event['description']) . "\r\n";
         }
         
-        if ($event['location']) {
+        if (!empty($event['location'])) {
             $icsContent .= "LOCATION:" . escapeICSText($event['location']) . "\r\n";
         }
         
         $icsContent .= "CATEGORIES:" . strtoupper($event['type']) . "\r\n";
+        
+        if (!empty($event['priority'])) {
+            // Priority mapping: urgent=1, high=3, medium=5, low=7
+            $priorityMap = ['urgent' => 1, 'high' => 3, 'medium' => 5, 'low' => 7];
+            $priority = $priorityMap[$event['priority']] ?? 5;
+            $icsContent .= "PRIORITY:$priority\r\n";
+        }
+        
         $icsContent .= "CREATED:" . gmdate('Ymd\THis\Z', strtotime($event['created_at'])) . "\r\n";
+        
+        if (!empty($event['updated_at'])) {
+            $icsContent .= "LAST-MODIFIED:" . gmdate('Ymd\THis\Z', strtotime($event['updated_at'])) . "\r\n";
+        }
+        
         $icsContent .= "END:VEVENT\r\n";
     }
     
@@ -108,8 +123,11 @@ function exportToICS($events, $filePath) {
 function exportToCSV($events, $filePath) {
     $handle = fopen($filePath, 'w');
     
+    // Write BOM for UTF-8
+    fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
+    
     $header = ['ID', 'Type', 'Title', 'Description', 'Start', 'End', 'All Day', 
-               'Location', 'Attendees', 'Priority', 'Created'];
+               'Location', 'Attendees', 'Priority', 'Recurring', 'Created'];
     fputcsv($handle, $header);
     
     foreach($events as $event) {
@@ -117,13 +135,14 @@ function exportToCSV($events, $filePath) {
             $event['id'],
             $event['type'],
             $event['title'],
-            $event['description'],
+            $event['description'] ?? '',
             $event['start'],
-            $event['end'],
+            $event['end'] ?? '',
             $event['all_day'] ? 'Yes' : 'No',
-            $event['location'],
-            $event['attendees'],
+            $event['location'] ?? '',
+            $event['attendees'] ?? '',
             $event['priority'],
+            $event['recurring'] ? 'Yes' : 'No',
             $event['created_at']
         ];
         fputcsv($handle, $row);
@@ -137,6 +156,7 @@ function exportToJSON($events, $filePath) {
     $data = [
         'export_date' => date('Y-m-d H:i:s'),
         'total_events' => count($events),
+        'format_version' => '1.0',
         'events' => $events
     ];
     
@@ -145,36 +165,107 @@ function exportToJSON($events, $filePath) {
 }
 
 function exportToPDF($events, $filePath) {
-    $html = '<html><head><title>Calendar Export</title>';
+    $html = '<!DOCTYPE html><html><head>';
+    $html .= '<meta charset="UTF-8">';
+    $html .= '<title>Calendar Export</title>';
     $html .= '<style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .event { border: 1px solid #ddd; margin: 10px 0; padding: 10px; }
-        .event-title { font-weight: bold; font-size: 16px; }
-        .event-meta { color: #666; font-size: 12px; }
-        .event-description { margin: 5px 0; }
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5;
+        }
+        .header {
+            background: #4CAF50;
+            color: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .header h1 { margin: 0; }
+        .stats {
+            background: white;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .event { 
+            border: 1px solid #ddd; 
+            margin: 10px 0; 
+            padding: 15px; 
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .event-title { 
+            font-weight: bold; 
+            font-size: 18px; 
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .event-meta { 
+            color: #666; 
+            font-size: 13px; 
+            margin: 5px 0;
+        }
+        .event-description { 
+            margin: 10px 0; 
+            color: #444;
+            line-height: 1.5;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            margin-right: 5px;
+        }
+        .badge-type { background: #2196F3; color: white; }
+        .badge-priority { background: #FF9800; color: white; }
+        .badge-urgent { background: #F44336; color: white; }
+        @media print {
+            body { background: white; }
+            .event { page-break-inside: avoid; }
+        }
     </style></head><body>';
     
-    $html .= '<h1>Calendar Export - ' . date('Y-m-d H:i:s') . '</h1>';
-    $html .= '<p>Total Events: ' . count($events) . '</p>';
+    $html .= '<div class="header">';
+    $html .= '<h1>Calendar Export</h1>';
+    $html .= '<p>Generated: ' . date('d.m.Y H:i:s') . '</p>';
+    $html .= '</div>';
+    
+    $html .= '<div class="stats">';
+    $html .= '<strong>Total Events:</strong> ' . count($events);
+    $html .= '</div>';
     
     foreach($events as $event) {
         $html .= '<div class="event">';
         $html .= '<div class="event-title">' . htmlspecialchars($event['title']) . '</div>';
+        
         $html .= '<div class="event-meta">';
-        $html .= 'Type: ' . ucfirst($event['type']) . ' | ';
-        $html .= 'Date: ' . date('d.m.Y H:i', strtotime($event['start']));
-        if ($event['end']) {
-            $html .= ' - ' . date('d.m.Y H:i', strtotime($event['end']));
-        }
-        $html .= ' | Priority: ' . ucfirst($event['priority']);
+        $html .= '<span class="badge badge-type">' . ucfirst($event['type']) . '</span>';
+        
+        $priorityClass = $event['priority'] === 'urgent' ? 'badge-urgent' : 'badge-priority';
+        $html .= '<span class="badge ' . $priorityClass . '">' . ucfirst($event['priority']) . '</span>';
         $html .= '</div>';
         
-        if ($event['description']) {
+        $html .= '<div class="event-meta">';
+        $html .= '<strong>📅 Start:</strong> ' . date('d.m.Y H:i', strtotime($event['start']));
+        if (!empty($event['end'])) {
+            $html .= ' <strong>→ End:</strong> ' . date('d.m.Y H:i', strtotime($event['end']));
+        }
+        $html .= '</div>';
+        
+        if (!empty($event['description'])) {
             $html .= '<div class="event-description">' . nl2br(htmlspecialchars($event['description'])) . '</div>';
         }
         
-        if ($event['location']) {
-            $html .= '<div class="event-meta">Location: ' . htmlspecialchars($event['location']) . '</div>';
+        if (!empty($event['location'])) {
+            $html .= '<div class="event-meta"><strong>📍 Location:</strong> ' . htmlspecialchars($event['location']) . '</div>';
+        }
+        
+        if (!empty($event['attendees'])) {
+            $html .= '<div class="event-meta"><strong>👥 Attendees:</strong> ' . htmlspecialchars($event['attendees']) . '</div>';
         }
         
         $html .= '</div>';
@@ -192,11 +283,13 @@ function convertToICSDateTime($dateTime, $allDay = false) {
     if ($allDay) {
         return $date->format('Ymd');
     } else {
+        $date->setTimezone(new DateTimeZone('UTC'));
         return $date->format('Ymd\THis\Z');
     }
 }
 
 function escapeICSText($text) {
+    // Escape special characters in ICS format
     $text = str_replace(['\\', ';', ',', "\n", "\r"], ['\\\\', '\\;', '\\,', '\\n', ''], $text);
     return $text;
 }

@@ -69,8 +69,10 @@ class OblioAPI {
      * Load settings from database
      */
     private function loadSettings(): void {
+		global $_SESSION;
         try {
-            $stmt = $this->pdo->query("SELECT * FROM oblio_settings WHERE id=1 LIMIT 1");
+			$user_id = $_SESSION['user_id'];
+            $stmt = $this->pdo->query("SELECT * FROM oblio_settings WHERE id=".$user_id." LIMIT 1");
             $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
             $this->settings = $row ?: [];
         } catch (Exception $e) {

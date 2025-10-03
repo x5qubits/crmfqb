@@ -93,7 +93,7 @@ $username = $_COOKIE['username'] ?? null;
 
         <p class="mt-3 mb-1 text-center">
           Ai uitat parola? <a href="#">Resetează parola</a><br>
-          Nu ai cont? <a href="/app/register">Înregistrare</a>
+          Nu ai cont? <a href="/register">Înregistrare</a>
         </p>
       </div>
     </div>

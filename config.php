@@ -5,7 +5,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-error_reporting(E_ALL);
+error_reporting(0);
 
 if (!class_exists('ValueError')) {
     class ValueError extends Exception {}
@@ -19,7 +19,7 @@ $sql_db_pass = "ONWd*G4MS5t0BmEM";
 $sql_db_name = "qb_crm";
 $sql_db_port = 3306;
 $HostingCompany = "";
-$AppName = "FQB";
+$AppName = "FQB ERP";
 $contact_email = "";
 $contact_phone = "";
 $contact_adress = "";

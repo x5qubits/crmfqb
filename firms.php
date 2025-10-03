@@ -79,11 +79,5 @@ var currentCompanyCUI = <?= $user_id_js ?>;
 <script src="js/firms_offers.js"></script>
 <script src="js/firms_contracts.js"></script>
 
-<script>
-// Initialize invoice functionality on page load
-$(document).ready(function() {
-    loadVatRatesForInvoices();
-});
-</script>
 
 <?php include_once("WEB-INF/footer.php"); ?>

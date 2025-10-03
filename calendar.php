@@ -693,6 +693,107 @@ function setupEventHandlers() {
         }
     });
 }
+// Fixed JavaScript functions for calendar.php
+
+function confirmImport() {
+    const fileInput = document.getElementById('importFile');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        toastr.error('Vă rugăm să selectați un fișier!');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('calendar', $('#importCalendar').val());
+    formData.append('overwrite', $('#importOverwrite').is(':checked') ? '1' : '0');
+    formData.append('type', currentImportType);
+    
+    const btn = $('#btnConfirmImport');
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Se importă...');
+    
+    $.ajax({
+        url: 'api.php?f=import_calendar&user_id=<?= $user_id ?>',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function(resp) {
+            btn.prop('disabled', false).html('<i class="fas fa-file-import"></i> Importă');
+            if (resp.success) {
+                toastr.success(`Import finalizat! ${resp.imported || 0} evenimente importate.`);
+                $('#importModal').modal('hide');
+                $('#importFile').val('');
+                $('.custom-file-label').html('Alege fișier...');
+                loadEvents();
+            } else {
+                toastr.error(resp.error || 'Eroare la importarea evenimentelor!');
+            }
+        },
+        error: function(xhr, status, error) {
+            btn.prop('disabled', false).html('<i class="fas fa-file-import"></i> Importă');
+            toastr.error('Eroare de comunicare cu serverul: ' + error);
+        }
+    });
+}
+
+function confirmExport() {
+    const format = $('#exportFormat').val();
+    const period = $('#exportPeriod').val();
+    const startDate = $('#exportStartDate').val();
+    const endDate = $('#exportEndDate').val();
+    
+    // Validate custom period dates
+    if (period === 'custom') {
+        if (!startDate || !endDate) {
+            toastr.error('Vă rugăm să selectați perioada pentru export!');
+            return;
+        }
+        if (startDate > endDate) {
+            toastr.error('Data de start trebuie să fie înainte de data de final!');
+            return;
+        }
+    }
+    
+    const types = [];
+    $('.export-type-filter:checked').each(function() {
+        types.push($(this).val());
+    });
+    
+    const btn = $('#btnConfirmExport');
+    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Se exportă...');
+    
+    $.ajax({
+        url: 'api.php?f=export_calendar&user_id=<?= $user_id ?>',
+        type: 'POST',
+        data: {
+            format: format,
+            period: period,
+            start_date: startDate,
+            end_date: endDate,
+            types: types
+        },
+        dataType: 'json',
+        success: function(resp) {
+            btn.prop('disabled', false).html('<i class="fas fa-file-export"></i> Exportă');
+            if (resp.success) {
+                toastr.success(`Export finalizat! ${resp.event_count || 0} evenimente exportate.`);
+                $('#exportModal').modal('hide');
+                
+                // Trigger download
+                window.location.href = resp.file_url;
+            } else {
+                toastr.error(resp.error || 'Eroare la exportarea evenimentelor!');
+            }
+        },
+        error: function(xhr, status, error) {
+            btn.prop('disabled', false).html('<i class="fas fa-file-export"></i> Exportă');
+            toastr.error('Eroare de comunicare cu serverul: ' + error);
+        }
+    });
+}
 
 function loadEvents() {
     $.post('api.php?f=get_calendar_events&user_id=<?= $user_id ?>', {}, function(resp) {
@@ -703,7 +804,145 @@ function loadEvents() {
         } else {
             toastr.error(resp.error || 'Eroare la încărcarea evenimentelor!');
         }
-    }, 'json');
+    }, 'json').fail(function(xhr, status, error) {
+        toastr.error('Eroare de comunicare cu serverul: ' + error);
+    });
+}
+
+function saveEvent(e) {
+    e.preventDefault();
+    
+    const startDate = $('#event_start_date').val();
+    const startTime = $('#event_start_time').val();
+    const endDate = $('#event_end_date').val();
+    const endTime = $('#event_end_time').val();
+    const allDay = $('#event_all_day').is(':checked');
+    
+    // Validate required fields
+    if (!$('#event_title').val().trim()) {
+        toastr.error('Titlul evenimentului este obligatoriu!');
+        return;
+    }
+    
+    if (!startDate) {
+        toastr.error('Data de start este obligatorie!');
+        return;
+    }
+    
+    let start = startDate;
+    let end = endDate;
+    
+    if (!allDay && startTime) {
+        start += ' ' + startTime + ':00';
+    } else {
+        start += ' 00:00:00';
+    }
+    
+    if (endDate) {
+        if (!allDay && endTime) {
+            end += ' ' + endTime + ':00';
+        } else {
+            end += ' 23:59:59';
+        }
+    }
+    
+    // Validate that end is after start
+    if (end && new Date(end) < new Date(start)) {
+        toastr.error('Data de final trebuie să fie după data de start!');
+        return;
+    }
+    
+    const formData = new FormData(this);
+    formData.set('start', start);
+    formData.set('end', end || '');
+    
+    // Disable submit button
+    const submitBtn = $('#eventForm button[type="submit"]');
+    submitBtn.prop('disabled', true);
+    
+    $.ajax({
+        url: 'api.php?f=save_calendar_event&user_id=<?= $user_id ?>',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function(resp) {
+            submitBtn.prop('disabled', false);
+            if (resp.success) {
+                toastr.success(resp.message || 'Eveniment salvat cu succes!');
+                $('#eventModal').modal('hide');
+                loadEvents();
+            } else {
+                toastr.error(resp.error || 'Eroare la salvarea evenimentului!');
+            }
+        },
+        error: function(xhr, status, error) {
+            submitBtn.prop('disabled', false);
+            toastr.error('Eroare de comunicare cu serverul: ' + error);
+        }
+    });
+}
+
+function deleteEvent() {
+    const eventId = $('#event_id').val();
+    const event = calendar.getEventById(eventId);
+    
+    if (event) {
+        $('#deleteEventDetails').html(`
+            <strong>Eveniment:</strong> ${event.title}<br>
+            <strong>Data:</strong> ${moment(event.start).format('DD.MM.YYYY HH:mm')}<br>
+            <strong>Tip:</strong> ${event.extendedProps.type || 'N/A'}
+        `);
+    }
+    
+    deleteEventId = eventId;
+    $('#eventModal').modal('hide');
+    $('#deleteEventModal').modal('show');
+}
+
+function confirmDeleteEvent() {
+    if (!deleteEventId) return;
+    
+    const btn = $('#confirmDeleteEvent');
+    btn.prop('disabled', true);
+    
+    $.post('api.php?f=delete_calendar_event&user_id=<?= $user_id ?>', 
+        {id: deleteEventId}, 
+        function(resp) {
+            btn.prop('disabled', false);
+            if (resp.success) {
+                toastr.success('Eveniment șters cu succes!');
+                $('#deleteEventModal').modal('hide');
+                loadEvents();
+                deleteEventId = null;
+            } else {
+                toastr.error(resp.error || 'Eroare la ștergerea evenimentului!');
+            }
+        }, 'json'
+    ).fail(function(xhr, status, error) {
+        btn.prop('disabled', false);
+        toastr.error('Eroare de comunicare cu serverul: ' + error);
+    });
+}
+
+function updateEventDates(event) {
+    $.post('api.php?f=update_event_dates&user_id=<?= $user_id ?>', {
+        id: event.id,
+        start: moment(event.start).format('YYYY-MM-DD HH:mm:ss'),
+        end: event.end ? moment(event.end).format('YYYY-MM-DD HH:mm:ss') : null
+    }, function(resp) {
+        if (resp.success) {
+            toastr.success('Eveniment actualizat!');
+            loadEvents();
+        } else {
+            toastr.error(resp.error || 'Eroare la actualizarea evenimentului!');
+            calendar.refetchEvents(); // Revert changes
+        }
+    }, 'json').fail(function(xhr, status, error) {
+        toastr.error('Eroare de comunicare cu serverul: ' + error);
+        calendar.refetchEvents(); // Revert changes
+    });
 }
 
 function filterAndDisplay() {
@@ -825,105 +1064,9 @@ function editEvent(event) {
     $('#eventModal').modal('show');
 }
 
-function saveEvent(e) {
-    e.preventDefault();
-    
-    const startDate = $('#event_start_date').val();
-    const startTime = $('#event_start_time').val();
-    const endDate = $('#event_end_date').val();
-    const endTime = $('#event_end_time').val();
-    const allDay = $('#event_all_day').is(':checked');
-    
-    let start = startDate;
-    let end = endDate;
-    
-    if (!allDay && startTime) {
-        start += ' ' + startTime + ':00';
-    } else {
-        start += ' 00:00:00';
-    }
-    
-    if (endDate) {
-        if (!allDay && endTime) {
-            end += ' ' + endTime + ':00';
-        } else {
-            end += ' 23:59:59';
-        }
-    }
-    
-    const formData = new FormData(this);
-    formData.set('start', start);
-    formData.set('end', end || '');
-    
-    $.ajax({
-        url: 'api.php?f=save_calendar_event&user_id=<?= $user_id ?>',
-        type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        dataType: 'json',
-        success: function(resp) {
-            if (resp.success) {
-                toastr.success('Eveniment salvat cu succes!');
-                $('#eventModal').modal('hide');
-                loadEvents();
-            } else {
-                toastr.error(resp.error || 'Eroare la salvarea evenimentului!');
-            }
-        },
-        error: function() {
-            toastr.error('Eroare de comunicare cu serverul!');
-        }
-    });
-}
 
-function deleteEvent() {
-    const event = calendar.getEventById($('#event_id').val());
-    if (event) {
-        $('#deleteEventDetails').html(`
-            <strong>Eveniment:</strong> ${event.title}<br>
-            <strong>Data:</strong> ${moment(event.start).format('DD.MM.YYYY HH:mm')}<br>
-            <strong>Tip:</strong> ${event.extendedProps.type}
-        `);
-    }
-    
-    deleteEventId = $('#event_id').val();
-    $('#eventModal').modal('hide');
-    $('#deleteEventModal').modal('show');
-}
 
-function confirmDeleteEvent() {
-    if (!deleteEventId) return;
-    
-    $.post('api.php?f=delete_calendar_event&user_id=<?= $user_id ?>', 
-        {id: deleteEventId}, 
-        function(resp) {
-            if (resp.success) {
-                toastr.success('Eveniment șters cu succes!');
-                $('#deleteEventModal').modal('hide');
-                loadEvents();
-                deleteEventId = null;
-            } else {
-                toastr.error(resp.error || 'Eroare la ștergerea evenimentului!');
-            }
-        }, 'json'
-    );
-}
 
-function updateEventDates(event) {
-    $.post('api.php?f=update_event_dates&user_id=<?= $user_id ?>', {
-        id: event.id,
-        start: moment(event.start).format('YYYY-MM-DD HH:mm:ss'),
-        end: event.end ? moment(event.end).format('YYYY-MM-DD HH:mm:ss') : null
-    }, function(resp) {
-        if (resp.success) {
-            toastr.success('Eveniment actualizat!');
-            loadEvents();
-        } else {
-            toastr.error(resp.error || 'Eroare la actualizarea evenimentului!');
-        }
-    }, 'json');
-}
 
 function updateViewButtons(activeView) {
     $('#btnMonthView, #btnWeekView, #btnDayView').removeClass('btn-primary').addClass('btn-outline-secondary');
@@ -963,88 +1106,6 @@ function getFileAccept(type) {
         case 'json': return '.json';
         default: return '*';
     }
-}
-
-function confirmImport() {
-    const fileInput = document.getElementById('importFile');
-    const file = fileInput.files[0];
-    
-    if (!file) {
-        toastr.error('Vă rugăm să selectați un fișier!');
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('calendar', $('#importCalendar').val());
-    formData.append('overwrite', $('#importOverwrite').is(':checked') ? '1' : '0');
-    formData.append('type', currentImportType);
-    
-    const btn = $('#btnConfirmImport');
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Se importă...');
-    
-    $.ajax({
-        url: 'api.php?f=import_calendar&user_id=<?= $user_id ?>',
-        type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        dataType: 'json',
-        success: function(resp) {
-            btn.prop('disabled', false).html('<i class="fas fa-file-import"></i> Importă');
-            if (resp.success) {
-                toastr.success(`Import finalizat! ${resp.imported || 0} evenimente importate.`);
-                $('#importModal').modal('hide');
-                loadEvents();
-            } else {
-                toastr.error(resp.error || 'Eroare la import!');
-            }
-        },
-        error: function() {
-            btn.prop('disabled', false).html('<i class="fas fa-file-import"></i> Importă');
-            toastr.error('Eroare de comunicare cu serverul!');
-        }
-    });
-}
-
-function confirmExport() {
-    const formData = {
-        format: $('#exportFormat').val(),
-        period: $('#exportPeriod').val(),
-        start_date: $('#exportStartDate').val(),
-        end_date: $('#exportEndDate').val(),
-        types: []
-    };
-    
-    $('.export-type:checked').each(function() {
-        formData.types.push($(this).val());
-    });
-    
-    if (formData.types.length === 0) {
-        toastr.error('Vă rugăm să selectați cel puțin un tip de eveniment!');
-        return;
-    }
-    
-    const btn = $('#btnConfirmExport');
-    btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Se exportă...');
-    
-    $.post('api.php?f=export_calendar&user_id=<?= $user_id ?>', formData, function(resp) {
-        btn.prop('disabled', false).html('<i class="fas fa-file-export"></i> Exportă');
-        if (resp.success) {
-            // Download file
-            const link = document.createElement('a');
-            link.href = resp.file_url;
-            link.download = resp.filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            toastr.success('Export finalizat cu succes!');
-            $('#exportModal').modal('hide');
-        } else {
-            toastr.error(resp.error || 'Eroare la export!');
-        }
-    }, 'json');
 }
 
 // Bulk Actions

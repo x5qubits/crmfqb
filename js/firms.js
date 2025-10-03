@@ -112,8 +112,6 @@ $('#companyForm').off('submit').on('submit', function(e){
   }).fail(function(){ toastr.error('Eroare rețea.'); });
 });
 
-loadCompanies();
-loadAllOffers();
 
 function loadContacts(cui) {
   $('#contactsLoader').show();
@@ -124,7 +122,7 @@ function loadContacts(cui) {
     if(resp.success && resp.company && resp.company.contacts && resp.company.contacts.length){
       resp.company.contacts.forEach(c=>{
         const roleText = c.contact_role==1?'Manager':c.contact_role==2?'Director':c.contact_role==3?'Principal':c.contact_role==4?'Secundar':'Nedefinit';
-        $('#contactsTableBody').append('<tr><td>'+c.contact_name+'</td><td>'+roleText+'</td><td>'+c.contact_phone+'</td><td>'+c.contact_email+'</td><td><button class="btn btn-xs btn-primary edit-contact" data-id="'+c.contact_id+'"><i class="fas fa-edit"></i></button> <button class="btn btn-xs btn-danger delete-contact" data-id="'+c.contact_id+'" data-cui="'+cui+'"><i class="fas fa-trash"></i></button></td></tr>');
+        $('#contactsTableBody').append('<tr><td>'+c.contact_name+'</td><td>'+roleText+'</td><td class="openphoneorwa">'+c.contact_phone+'</td><td class="sendmail">'+c.contact_email+'</td><td><button class="btn btn-xs btn-primary edit-contact" data-id="'+c.contact_id+'"><i class="fas fa-edit"></i></button> <button class="btn btn-xs btn-danger delete-contact" data-id="'+c.contact_id+'" data-cui="'+cui+'"><i class="fas fa-trash"></i></button></td></tr>');
       });
     } else $('#contactsTableBody').html('<tr><td colspan="5" class="text-center">Nu există contacte.</td></tr>');
   }).fail(()=>{ $('#contactsLoader').hide(); toastr.error('Eroare la preluarea contactelor.'); });
@@ -357,3 +355,42 @@ const fetchCIV = debounce(function(){
 
 
 $(document).on('blur', '#company_cui', function(){ fetchCIV.call(this); });
+
+$(function() {
+  let selectedNumber = "";
+
+  // Open modal on click
+  $(document).on("click", ".openphoneorwa", function(e) {
+    e.preventDefault();
+    let rawNumber = $(this).text() || "";
+
+    // Normalize phone: add +4 if missing
+    if (!rawNumber.startsWith("+")) {
+      if (!rawNumber.startsWith("4")) {
+        rawNumber = "+4" + rawNumber;
+      } else {
+        rawNumber = "+" + rawNumber;
+      }
+    }
+
+    selectedNumber = rawNumber;
+    $("#modalPhoneText").text("Selected number: " + selectedNumber);
+    $("#phoneOrWaModal").modal("show");
+  });
+
+  // WhatsApp action
+  $("#btnWhatsApp").on("click", function() {
+    if (selectedNumber) {
+      window.open("https://wa.me/" + selectedNumber.replace(/\D/g, ""), "_blank");
+    }
+	 $("#phoneOrWaModal").modal("hide");
+  });
+
+  // Call action
+  $("#btnCall").on("click", function() {
+    if (selectedNumber) {
+      window.location.href = "tel:" + selectedNumber;
+    }
+	 $("#phoneOrWaModal").modal("hide");
+  });
+});
