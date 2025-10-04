@@ -122,14 +122,15 @@ function loadContacts(cui) {
     if(resp.success && resp.company && resp.company.contacts && resp.company.contacts.length){
       resp.company.contacts.forEach(c=>{
         const roleText = c.contact_role==1?'Manager':c.contact_role==2?'Director':c.contact_role==3?'Principal':c.contact_role==4?'Secundar':'Nedefinit';
-        $('#contactsTableBody').append('<tr><td>'+c.contact_name+'</td><td>'+roleText+'</td><td class="openphoneorwa">'+c.contact_phone+'</td><td class="sendmail">'+c.contact_email+'</td><td><button class="btn btn-xs btn-primary edit-contact" data-id="'+c.contact_id+'"><i class="fas fa-edit"></i></button> <button class="btn btn-xs btn-danger delete-contact" data-id="'+c.contact_id+'" data-cui="'+cui+'"><i class="fas fa-trash"></i></button></td></tr>');
+        $('#contactsTableBody').append('<tr><td>'+c.contact_name+'</td><td>'+roleText+'</td><td class="openphoneorwa">'+c.contact_phone+'</td><td class="sendmail">'+c.contact_email+'</td><td><button class="btn btn-xs btn-primary edit-contact" data-id="'+c.contact_id+'"><i class="fas fa-edit"></i></button>  <button class="btn btn-xs btn-success import-contact" data-id="'+c.contact_id+'" data-name="'+base64_encode(c.contact_name)+'" data-email="'+base64_encode(c.contact_email)+'" data-phone="'+base64_encode(c.contact_phone)+'"><i class="fas fa-bell"></i></button> <button class="btn btn-xs btn-danger float-right delete-contact" data-id="'+c.contact_id+'" data-cui="'+cui+'"><i class="fas fa-trash"></i></button></td></tr>');
       });
     } else $('#contactsTableBody').html('<tr><td colspan="5" class="text-center">Nu există contacte.</td></tr>');
   }).fail(()=>{ $('#contactsLoader').hide(); toastr.error('Eroare la preluarea contactelor.'); });
 }
 
 
-$(document).on('click','.view-contacts', function(){ 
+$(document).on('click','.view-contacts', function(e){ 
+  e.preventDefault();
   currentCompanyCUI=$(this).data('cui'); 
   currentCompanyName=base64_decode($(this).data('name')); 
   $('#contactsCompanyName').text(currentCompanyName); 
@@ -393,4 +394,21 @@ $(function() {
     }
 	 $("#phoneOrWaModal").modal("hide");
   });
+});
+
+$(function () {
+    var key = "searchBoxValue";
+
+    // Load saved value on page load
+    var saved = localStorage.getItem(key);
+    if (saved) {
+        setTimeout(function () {
+            $("#searchBox").val(saved).trigger("keyup");
+        }, 1000);
+    }
+
+    // Save on input
+    $("#searchBox").on("input", function () {
+        localStorage.setItem(key, $(this).val());
+    });
 });

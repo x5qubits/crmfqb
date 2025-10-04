@@ -254,6 +254,7 @@ function loadSettings() {
             $('#oblioEmail').val(resp.data.email);
             $('#oblioCompany').val(resp.data.company);
             $('#oblioCif').val(resp.data.cif);
+            $('#oblioSecret').val(resp.data.api_key);
             
             if (resp.data.configured) {
                 $('#btnTestConnection').show();

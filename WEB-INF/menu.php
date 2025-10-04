@@ -119,6 +119,12 @@ $docArticles = array();
 	<a href="./offer_templates" class="dropdown-item">
 	  <i class="fas fa-money-bill-wave mr-2"></i> Template Oferte
 	</a>	
+	<a href="./oblio" class="dropdown-item">
+	  <i class="fas fa-file mr-2"></i> Setări Oblio
+	</a>
+	
+	
+	
 	<?php if($isAdmin): ?>
 	<div class="dropdown-divider"></div>
 	<a href="./eadmin" class="dropdown-item">
@@ -219,15 +225,31 @@ $docArticles = array();
       <!-- Sidebar Menu -->
       <nav class="mt-2">
         <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-		
-          <li class="nav-item ">
-            <a href="./dashboard" class="nav-link <?=($pageId == 0 ? "active":"")?>">
+          <li class="nav-item <?=($pageId == 0 ? "nav-item menu-is-opening menu-open":"")?>">
+            <a href="/dashboard" class="nav-link <?=($pageId == 0 ? "active":"")?>">
               <i class="nav-icon fas fa-tachometer-alt"></i>
               <p>
                 Dashboard
+                <i class="fas fa-angle-left right"></i>
               </p>
             </a>
+            <ul class="nav nav-treeview">
+              <li class="nav-item">
+                <a href="./" class="nav-link <?=($pageIds == 0 ? "active":"")?>">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Financiar</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="./dashboard" class="nav-link <?=($pageIds == 1 ? "active":"")?>">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Evenimente</p>
+                </a>
+              </li>
+
+            </ul>
           </li>
+
 		  <li class="nav-header">Gestionare Companii</li>
           <li class="nav-item ">
             <a href="./firms" class="nav-link <?=($pageId == 1 ? "active":"")?>">
@@ -246,13 +268,7 @@ $docArticles = array();
             </a>
           </li>	
           <li class="nav-item ">
-            <a href="./oblio" class="nav-link <?=($pageId == 2 ? "active":"")?>">
-              <i class="nav-icon fas fa-file"></i>
-              <p>
-                Facturii
-              </p>
-            </a>
-          </li>	
+
 		  
 		  <li class="nav-header">Work</li>
 			<li class="nav-item">
@@ -274,8 +290,15 @@ $docArticles = array();
               </p>
             </a>
           </li>
-		  
-		  
+		  <li class="nav-item">
+            <a href="campaigns" class="nav-link">
+              <i class="nav-icon fas fa-columns"></i>
+              <p>
+                Campanii
+              </p>
+            </a>
+          </li>				  
+		  	<!--
 		  <li class="nav-item">
             <a href="kanban.html" class="nav-link">
               <i class="nav-icon fas fa-columns"></i>
@@ -284,7 +307,7 @@ $docArticles = array();
               </p>
             </a>
           </li>		  
-		  
+		  -->
 		  
         </ul>
       </nav>

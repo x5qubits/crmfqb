@@ -48,7 +48,50 @@ try {
         echo json_encode(['success' => true, 'data' => $invoices]);
         exit;
     }
-    
+if ($f === 'save_oblio_settings') {
+    try {
+        $email = trim($_POST['oblio_email'] ?? '');
+        $secret = trim($_POST['oblio_secret'] ?? '');
+        $company = trim($_POST['oblio_company'] ?? '');
+        $cif = trim($_POST['oblio_cif'] ?? '');
+        
+        if (empty($email) || empty($secret)) {
+            echo json_encode(['success' => false, 'error' => 'Email și Secret sunt obligatorii']);
+            exit;
+        }
+        
+        if (empty($cif)) {
+            echo json_encode(['success' => false, 'error' => 'CIF este obligatoriu']);
+            exit;
+        }
+        
+        // Remove RO prefix if present
+        $cif = preg_replace('/^RO/i', '', $cif);
+        
+        $oblio->saveSettings($email, $secret, $company, $cif);
+        
+        echo json_encode([
+            'success' => true, 
+            'message' => 'Setări salvate cu succes',
+            'cif' => $cif
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+	 if ($f === 'get_oblio_companies') {
+		try {
+			$companies = $oblio->getCompanies();
+			echo json_encode([
+				'success' => true,
+				'data' => $companies
+			]);
+		} catch (Exception $e) {
+			echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+		}
+		exit;
+	}   
     if ($f === 'create_oblio_invoice' || $f === 'create_oblio_proforma') {
         $data = json_decode(file_get_contents('php://input'), true);
         
@@ -189,64 +232,23 @@ try {
         exit;
     }
     
-    if ($f === 'sync_invoices_from_oblio') {
-        $year = isset($_POST['year']) ? (int)$_POST['year'] : (int)date('Y');
+if ($f === 'sync_invoices_from_oblio') {
+    try {
+        $year = isset($_POST['year']) ? (int)$_POST['year'] : date('Y');
+        $month = isset($_POST['month']) ? (int)$_POST['month'] : null;
         
-        $settings = $oblio->getSettings();
-        $filters = [];
-        $filters['issuedAfter'] = "$year-01-01";
-        $filters['issuedBefore'] = "$year-12-31";
-        
-        $invoices = $oblio->listInvoices($filters);
-        
-        $synced = 0;
-        foreach ($invoices as $inv) {
-            $clientCif = isset($inv['client']['cif']) ? str_replace('RO', '', $inv['client']['cif']) : '';
-            
-            $stmt = $pdo->prepare("
-                INSERT INTO oblio_invoices (
-                    user_id, company_cui, oblio_id, type, series, number, date, due_date,
-                    client_name, client_cif, subtotal, vat, total, status, items, oblio_data
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE 
-                    oblio_id = VALUES(oblio_id),
-                    status = VALUES(status),
-                    oblio_data = VALUES(oblio_data),
-                    updated_at = CURRENT_TIMESTAMP
-            ");
-            
-            $type = 'invoice';
-            $status = ($inv['cancelled'] ?? false) ? 'cancelled' : 'sent';
-            
-            $stmt->execute([
-                $userId,
-                $settings['cif'],
-                $inv['id'] ?? null,
-                $type,
-                $inv['seriesName'],
-                $inv['number'],
-                $inv['issueDate'],
-                $inv['dueDate'] ?? null,
-                $inv['client']['name'] ?? '',
-                $clientCif,
-                $inv['subtotal'] ?? 0,
-                $inv['vat'] ?? 0,
-                $inv['total'] ?? 0,
-                $status,
-                json_encode($inv['products'] ?? [], JSON_UNESCAPED_UNICODE),
-                json_encode($inv, JSON_UNESCAPED_UNICODE)
-            ]);
-            
-            $synced++;
-        }
+        $synced = $oblio->syncInvoicesFromOblio($year, $month);
         
         echo json_encode([
             'success' => true,
-            'message' => "Sincronizate $synced facturi",
-            'synced' => $synced
+            'synced' => $synced,
+            'message' => "Sincronizate $synced facturi din Oblio"
         ]);
-        exit;
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
+    exit;
+}
 if ($f === 'download_invoice_pdf') {
     try {
         $id = (int)($_GET['id'] ?? 0);

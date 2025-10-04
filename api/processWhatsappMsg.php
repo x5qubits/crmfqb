@@ -1,6 +1,6 @@
 <?php
 // ajax/processWhatsappMsg.php
-
+require_once __DIR__ . '/PHPMailer/PHPMailerAutoload.php';
 // --- Basic Setup ---
 $log_file = __DIR__ . '/debug_whatsapp.log';
 function write_log($message) {

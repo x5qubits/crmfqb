@@ -98,6 +98,7 @@ class OblioAPI {
             'email' => $this->settings['email'] ?? '',
             'company' => $this->settings['company'] ?? '',
             'cif' => $this->settings['cif'] ?? '',
+            'api_key' => $this->settings['api_key'] ?? '',
             'configured' => $this->isConfigured()
         ];
     }

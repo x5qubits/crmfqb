@@ -17,7 +17,7 @@ try {
 
     $sql = "
         SELECT q.id, q.item_id, q.campaign_id,
-               it.label, it.phone,
+               it.label, it.phone, it.email,
                cp.title, cp.schedule_time, cp.body_template
         FROM campains_queue q
         JOIN campains_category_items it ON it.id = q.item_id
@@ -38,9 +38,13 @@ try {
         $pdo->prepare("UPDATE campains_queue SET status='SENT', sent_at=NOW() WHERE id=? AND user_id=?")
             ->execute([(int)$row['id'], $UID]);
         $pdo->commit();
+		$content = str_replace("{name}", $row['label'], $row['body_template']);
+		$content = str_replace("{label}", $row['label'], $content);
+		$content = str_replace("{email}", $row['email'], $content);
+		$content = str_replace("{phone}", $row['phone'], $content);
         echo json_encode([
 			'id'      => $row['id'],
-            'content'         => str_replace("{{name}}",$row['label'], $row['body_template']),
+            'content'         => $content,
             'contact'         => $row['phone'],
 			'sim'         => "SIM2",
             'OK'         => true

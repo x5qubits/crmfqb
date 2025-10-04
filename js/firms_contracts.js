@@ -92,4 +92,46 @@ $(document).on('click','.delete-contract-history', function(){
   };
   $('#deleteModal').modal('show');
 });
-$('#btnAddContractHistory').on('click', function(){ openContractModal(currentCompanyCUI,currentCompanyName); });
+$('#btnAddContractHistory2').on('click', function(){ openContractModal(currentCompanyCUI,currentCompanyName); });
+// open modal
+$(document).on("click", ".import-contact", function () {
+  let btn = $(this);
+
+  // prefill decoded data
+  $("#labelField").val(base64_decode(btn.data("name")));
+  $("#emailField").val(base64_decode(btn.data("email")));
+  let phone = base64_decode(btn.data("phone"));
+  if (phone && phone[0] !== '0' && phone[0] !== '+') phone = '+4' + phone;
+  $("#phoneField").val(phone);
+
+  // reset other fields
+  $("#memoField").val('');
+  $("#birthdateField").val('');
+
+  // load campaigns
+  $.getJSON("campaigns?ajax=1&action=get_categories_list", function(res){
+    if(res.success){
+      let $sel = $("#campaignSelect");
+      $sel.empty();
+      res.data.forEach(c => {
+        $sel.append('<option value="'+c.id+'">'+c.name+'</option>');
+      });
+    }
+  });
+
+  // show modal
+  $("#importModal").modal("show");
+});
+
+// submit form
+$("#importForm").on("submit", function(e){
+  e.preventDefault();
+  let data = $(this).serializeArray();
+  data.push({name: "action", value: "add_item"});
+  data.push({name: "ajax", value: USER_ID});
+
+  $.post("campaigns.php", data, function(resp){
+    console.log("Response:", resp);
+    $("#importModal").modal("hide");
+  });
+});

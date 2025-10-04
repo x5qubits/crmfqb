@@ -40,8 +40,8 @@ $username = $_COOKIE['username'] ?? null;
 <body class="hold-transition lockscreen">
   <div class="lockscreen-wrapper">
     <div class="lockscreen-logo">
-      <a href="./"><img src="/assets/imgs/logo/logo-5a.png" alt="Logo"></a>
-      <h4 class="text-light font-weight-bold">AvaSell eMAG</h4>
+      <a href="./"><img src="/assets/imgs/favs/favicon.svg" style="width: 100px;" alt="Logo"></a>
+      <h4 class="text-light font-weight-bold">FQB ERP</h4>
     </div>
     <div class="lockscreen-name text-white"><?=htmlspecialchars($username)?></div>
     <div class="lockscreen-item">
@@ -64,7 +64,7 @@ $username = $_COOKIE['username'] ?? null;
   <!-- formularul complet dacă nu avem cookie -->
   <div class="register-box">
     <div class="register-logo">
-      <a href="./"><img src="/assets/imgs/logo/logo-5a.png" alt="logo not found"></a>
+      <a href="./"><img src="/assets/imgs/favs/favicon.svg" style="width: 100px;" alt="logo not found"></a>
     </div>
     <div class="card shadow">
       <div class="card-body register-card-body">

@@ -271,7 +271,7 @@
                     <button type="button" class="btn btn-sm btn-success" id="addItemButton"><i class="fas fa-plus"></i> Adaugă Articol</button>
 
                     <div class="row mt-3">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <div class="form-group">
                                 <label>Tip Discount</label>
                                 <select class="form-control form-control-sm" id="offer_discount_type" name="discount_type">
@@ -280,17 +280,10 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <div class="form-group">
                                 <label>Valoare Discount</label>
                                 <input type="number" step="0.01" class="form-control form-control-sm" id="offer_discount_amount" name="discount_amount" value="0" min="0">
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="pt-4">
-                                <div><strong>Subtotal:</strong> <span id="offer_subtotal_display">0.00</span> RON</div>
-                                <div class="text-danger"><strong>Discount:</strong> -<span id="offer_discount_display">0.00</span> RON</div>
-                                <div class="text-success"><strong>TOTAL:</strong> <span id="offer_total_display_main">0.00</span> RON</div>
                             </div>
                         </div>
                     </div>
@@ -298,12 +291,21 @@
 
                     <div class="form-group mt-3">
                         <label>Detalii Suplimentare</label>
-                        <textarea class="form-control" id="offer_details" name="details" rows="3"></textarea>
+                        <textarea class="form-control" id="offer_details" name="details" rows="1"></textarea>
                     </div>
+					<div class="form-group mt-3">
+						<div class="pt-12">
+							<div>
+							<span class="text-warning"><strong>Subtotal:</strong> <span id="offer_subtotal_display">0.00</span> RON</span><br>
+							<span class="text-danger"><strong>Discount:</strong> -<span id="offer_discount_display">0.00</span> RON</span>
+							</span>
+							</div>
+						</div>
+					</div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Anulează</button>
-                    <button type="submit" class="btn btn-warning">Salvează Ofertă</button>
+                    <button type="submit" class="btn btn-warning">Salvează Ofertă <span id="offer_total_display_main">0.00</span> RON</button>
                 </div>
             </form>
         </div>
@@ -455,5 +457,53 @@
       </div>
       
     </div>
+  </div>
+</div>
+<!-- Modal -->
+<div class="modal fade" id="importModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <form id="importForm" class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import Contact</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span>&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="form-group">
+          <label>Campaign</label>
+          <select name="category_id" id="campaignSelect" class="form-control" required></select>
+        </div>
+
+        <div class="form-group">
+          <label>Label (Name)</label>
+          <input type="text" class="form-control" name="label" id="labelField" required>
+        </div>
+
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" class="form-control" name="email" id="emailField">
+        </div>
+
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="text" class="form-control" name="phone" id="phoneField">
+        </div>
+
+        <div class="form-group">
+          <label>Memo</label>
+          <textarea class="form-control" name="memo" id="memoField"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Birthdate</label>
+          <input type="date" class="form-control" name="birthdate" id="birthdateField">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-success">Save Contact</button>
+      </div>
+    </form>
   </div>
 </div>
