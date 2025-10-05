@@ -1,6 +1,6 @@
 <?php
 include_once("config.php");
-$pageName = "Dashboard";
+$pageName = "Dashboard Financiar";
 $pageId = 0;
 $pageIds = 0;
 include_once("WEB-INF/menu.php");

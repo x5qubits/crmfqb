@@ -266,6 +266,14 @@ $docArticles = array();
                 Oferte Lansate
               </p>
             </a>
+          </li>
+          <li class="nav-item ">
+            <a href="./contracts" class="nav-link <?=($pageId == 5 ? "active":"")?>">
+              <i class="nav-icon fas fa-edit"></i>
+              <p>
+                Contracte
+              </p>
+            </a>
           </li>	
           <li class="nav-item ">
 

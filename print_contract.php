@@ -178,8 +178,10 @@ $art2_object_html .= '</ol>';
 // ---------- Merge vars for placeholders ----------
 $vars = [
   '{{CONTRACT.NUMBER}}' => (string)($contract['contract_number'] ?? ''),
+  '{{DOC.DATE}}'   => date("d/m/Y"),
   '{{CONTRACT.DATE}}'   => $contractDate,
   '{{CONTRACT.TIME}}'   => (string)$duration_months,
+  '{{PROJECT.NAME}}'   => (string)$contract['special_clauses'],
   '{{CONTRACT.TOTAL}}'  => $finalTotal > 0 ? money($finalTotal) . ' Lei' : '0.00 Lei',
   '{{CONTRACT.SUBTOTAL}}' => $totalValue > 0 ? money($totalValue) . ' Lei' : '0.00 Lei',
   '{{CONTRACT.DISCOUNT}}' => $discount_value > 0 ? money($discount_value) . ' Lei' : '',
@@ -209,34 +211,38 @@ function tpl_merge(string $html, array $map): string {
 $sections_html = '';
 if (!empty($templateSections)) {
     ob_start();
-    foreach ($templateSections as $sec) {
+    foreach ($templateSections as $key => $sec) {
         $t = isset($sec['title']) ? trim((string)$sec['title']) : '';
         $b = isset($sec['body'])  ? (string)$sec['body'] : '';
-        
-        if ($t !== '') echo '<h3 class="sec-title">'.h($t).'</h3>';
-        echo '<div class="sec-body">'.tpl_merge($b, $vars).'</div>';
+        if($key == 0) {
+			if ($t !== '') echo '<center><h1>'.tpl_merge(h($t), $vars).'</h3></center>';
+			echo '<div><center>'.tpl_merge($b, $vars).'</center><br></div>';
+		}else{
+			if ($t !== '') echo '<h3 class="sec-title">'.tpl_merge(h($t), $vars).'</h3>';
+			echo '<div class="sec-body">'.tpl_merge($b, $vars).'</div>';
+		}
     }
     $sections_html = ob_get_clean();
 }
-
+$template = null;
 // ---------- HTML ----------
 ?>
 <!doctype html>
 <html lang="ro">
 <head>
   <meta charset="utf-8">
-  <title>CONTRACT <?= h($contract['client_name']); ?></title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><?= $contract['client_name']; ?></title>
+  <meta name="viewport" content="width=device-width, initial-scale=0.7">
   <style>
     :root{--text:#111;--muted:#666;--line:#e5e7eb;--brand:#0f172a;--bg:#fff;--accent:#0b5cff}
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
-      font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text); text-indent: 0pt;text-align: justify;
+      font:12px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial}
     .toolbar{max-width:900px;margin:12px auto 0;padding:0 24px 6px;display:flex;gap:8px;justify-content:space-between;align-items:center}
     .btn{border:1px solid var(--line);background:#f9fafb;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px}
     .select{border:1px solid var(--line);padding:8px 12px;border-radius:8px;font-size:13px;background:#fff}
 
-    .page{max-width:900px;margin:12px auto 24px;padding:24px;background:#fff}
+    .page{max-width:1200px;margin:12px auto 24px;padding:24px;background:#fff}
     .header{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:2px solid var(--line);padding-bottom:16px}
     .logo{width:256px;background:#f8f8f8;border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden}
     .logo img{width:100%;height:100%;object-fit:contain}
@@ -258,7 +264,7 @@ if (!empty($templateSections)) {
 
     .sec-body{border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff}
     /* Emphasize first four articles visually */
-    .sections h3.sec-title:nth-of-type(-n+4)+.sec-body{border-left:3px solid var(--accent);background:#fafbff}
+    .sections h3.sec-title:nth-of-type(-n+1)+.sec-body{border-left:3px solid var(--accent);background:#fafbff}
 
     .discount-badge{margin-top:8px;padding:8px;background:#fef9e7;border:1px solid #f9e79f;border-radius:6px;font-size:13px}
     .discount-badge strong{color:#856404}
@@ -287,11 +293,11 @@ if (!empty($templateSections)) {
     <label for="template_id" class="muted">Template:</label>
     <select id="template_id" name="template_id" class="select" onchange="this.form.submit()">
       <option value="">— automat (user > global) —</option>
-      <?php foreach ($templates as $tpl): ?>
+      <?php foreach ($templates as $tpl){ if(($effectiveTemplateId === (int)$tpl['id'])) {$template = $tpl;} ?>
         <option value="<?= (int)$tpl['id']; ?>" <?= (($effectiveTemplateId === (int)$tpl['id']) ? 'selected' : ''); ?>>
           <?= h(($tpl['user_id'] ? 'Personal' : 'Global').': '.$tpl['title'].' (#'.$tpl['id'].')'); ?>
         </option>
-      <?php endforeach; ?>
+      <?php } if(!$template) {$template = $templates[0];} ?>
     </select>
   </form>
 </div>
@@ -317,19 +323,13 @@ if (!empty($templateSections)) {
     </div>
   </div>
 
-  <div class="title">
-    <h1>CONTRACT DE PRESTĂRI DE SERVICII</h1>
-  </div>
-  <div class="subtitle">
-    Nr <?= h($contract['contract_number']); ?> din <?= h($contractDate); ?>
-  </div>
-
   <div class="sections">
-    <h3 class="sec-title">CONTRACT <?= h($contract['client_name']); ?></h3>
-    <div class="sec-body">
-      <div class="muted">Contract între Prestator și Beneficiar, conform clauzelor de mai jos.</div>
+
+   
+
       
       <?php if ($discount_value > 0): ?>
+	   <div class="sec-body">
         <div class="discount-badge">
           <strong>Discount aplicat:</strong> 
           <?php if ($discount_type === 'percent'): ?>
@@ -339,17 +339,12 @@ if (!empty($templateSections)) {
             <?= money($discount_value); ?> Lei
           <?php endif; ?>
         </div>
+        </div>
       <?php endif; ?>
-    </div>
 
-    <?php if (!empty($contract['special_clauses'])): ?>
-      <h3 class="sec-title">Clauze speciale</h3>
-      <div class="sec-body"><?= nl2br(h($contract['special_clauses'])); ?></div>
-    <?php endif; ?>
-
-    <?= $sections_html /* All sections from template (including ART.1-4) */ ?>
+    <?= $sections_html ?>
   </div>
-
+<!--
   <div class="sign">
     <div class="box">
       <strong>PRESTATOR</strong><br>
@@ -368,7 +363,7 @@ if (!empty($templateSections)) {
   <div class="footer">
     Document emis electronic de <?= h($contract['seller_company_name'] ?: ''); ?>.
   </div>
-
+-->
 </div>
 </body>
 </html>

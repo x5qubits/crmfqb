@@ -137,7 +137,7 @@ $finalTotal = max(0, $subtotal - $discountValue);
   <style>
     :root { --text:#111; --muted:#666; --line:#e5e7eb; --brand:#0f172a; --bg:#fff; }
     * { box-sizing:border-box; }
-    html,body { margin:0; padding:0; background:var(--bg); color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial; }
+    html,body { margin:0; padding:0; background:var(--bg); color:var(--text); font:12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial; }
     .toolbar { max-width:900px; margin:12px auto 0; padding:0 24px 6px; display:flex; gap:8px; justify-content:space-between; align-items:center; }
     .toolbar .left { display:flex; gap:8px; align-items:center; }
     .toolbar .right { display:flex; gap:8px; }
@@ -241,6 +241,19 @@ $finalTotal = max(0, $subtotal - $discountValue);
     </div>
   </div>
 
+
+
+  <?php if (!empty($offer['details'])): ?>
+  <div class="sections">
+    <h3 class="sec-title">Detalii</h3>
+    <div class="sec-body"><?= nl2br(h($offer['details'])); ?></div>
+  </div>
+  <?php endif; ?>
+
+  <div class="sections">
+    <?= $sections ?>
+  </div>
+
   <div class="items">
     <table>
       <thead>
@@ -294,28 +307,11 @@ $finalTotal = max(0, $subtotal - $discountValue);
       </tfoot>
     </table>
   </div>
-
-  <?php if (!empty($offer['details'])): ?>
-  <div class="sections">
-    <h3 class="sec-title">Detalii</h3>
-    <div class="sec-body"><?= nl2br(h($offer['details'])); ?></div>
-  </div>
-  <?php endif; ?>
-
-  <div class="sections">
-    <?= $sections ?>
-  </div>
-
-  <div class="legal">
-    Această ofertă nu reprezintă factură și nu transferă proprietatea asupra bunurilor/serviciilor. Termenii comerciali și condițiile contractuale
-    se aplică conform secțiunilor și legislației române în vigoare. Acceptarea ofertei se poate face prin răspuns scris (email) sau prin efectuarea plății
-    conform instrucțiunilor comunicate.
-  </div>
-
-  <div class="footer">
-    Document emis electronic de <?= h($offer['seller_company_name'] ?: ''); ?>.
-  </div>
-
+  
+<div class="footer">
+ Document emis electronic de <?= h($offer['seller_company_name'] ?: ''); ?>.
+</div>
+  
 </div>
 
 </body>

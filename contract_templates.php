@@ -1,8 +1,10 @@
 <?php
+$pageName = "Template-uri documente";
 require_once __DIR__.'/config.php';
 require_once __DIR__.'/db.php';
 include_once("WEB-INF/menu.php"); 
 $USER_ID = isset($user_id_js) ? (int)$user_id_js : (isset($_SESSION['id'])?(int)$_SESSION['id']:0);
+
 ?>
 
 <link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
@@ -44,6 +46,184 @@ $USER_ID = isset($user_id_js) ? (int)$user_id_js : (isset($_SESSION['id'])?(int)
             </table>
           </div>
         </div>
+		
+<!-- Card Variabile Template Contract -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3" style="cursor: pointer;" data-toggle="collapse" data-target="#variablesTableCollapse" aria-expanded="false" aria-controls="variablesTableCollapse">
+        <h6 class="m-0 font-weight-bold">
+            <i class="fas fa-chevron-down mr-2" id="collapseIcon"></i>
+            Variabile Disponibile pentru Template-uri Contract
+        </h6>
+    </div>
+    <div id="variablesTableCollapse" class="collapse">
+        <div class="card-body">
+            <p class="text-muted mb-3">Click pe variabilă pentru a o copia în clipboard.</p>
+            
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th width="30%">Variabilă</th>
+                            <th width="35%">Descriere</th>
+                            <th width="35%">Categorie</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Informații Contract -->
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{CONTRACT.NUMBER}}">{{CONTRACT.NUMBER}}</code></td>
+                            <td>Numărul contractului</td>
+                            <td><span class="badge badge-primary">Contract</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{DOC.DATE}}">{{DOC.DATE}}</code></td>
+                            <td>Data documentului (ziua curentă)</td>
+                            <td><span class="badge badge-primary">Contract</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{CONTRACT.DATE}}">{{CONTRACT.DATE}}</code></td>
+                            <td>Data contractului</td>
+                            <td><span class="badge badge-primary">Contract</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{CONTRACT.TIME}}">{{CONTRACT.TIME}}</code></td>
+                            <td>Durata contractului în luni</td>
+                            <td><span class="badge badge-primary">Contract</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{PROJECT.NAME}}">{{PROJECT.NAME}}</code></td>
+                            <td>Numele proiectului / Clauze speciale</td>
+                            <td><span class="badge badge-primary">Contract</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{CONTRACT.TOTAL}}">{{CONTRACT.TOTAL}}</code></td>
+                            <td>Valoarea totală (cu TVA) în Lei</td>
+                            <td><span class="badge badge-primary">Contract</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{CONTRACT.SUBTOTAL}}">{{CONTRACT.SUBTOTAL}}</code></td>
+                            <td>Subtotal (fără TVA) în Lei</td>
+                            <td><span class="badge badge-primary">Contract</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{CONTRACT.DISCOUNT}}">{{CONTRACT.DISCOUNT}}</code></td>
+                            <td>Valoarea reducerii în Lei</td>
+                            <td><span class="badge badge-primary">Contract</span></td>
+                        </tr>
+                        
+                        <!-- Date Prestator -->
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{PRESTATOR.NAME}}">{{PRESTATOR.NAME}}</code></td>
+                            <td>Denumirea companiei prestator</td>
+                            <td><span class="badge badge-success">Prestator</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{PRESTATOR.ADDRESS}}">{{PRESTATOR.ADDRESS}}</code></td>
+                            <td>Adresa sediului social</td>
+                            <td><span class="badge badge-success">Prestator</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{PRESTATOR.REG}}">{{PRESTATOR.REG}}</code></td>
+                            <td>Număr Registrul Comerțului</td>
+                            <td><span class="badge badge-success">Prestator</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{PRESTATOR.CUI}}">{{PRESTATOR.CUI}}</code></td>
+                            <td>Cod Unic de Înregistrare (CUI)</td>
+                            <td><span class="badge badge-success">Prestator</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{PRESTATOR.IBAN}}">{{PRESTATOR.IBAN}}</code></td>
+                            <td>IBAN cont bancar</td>
+                            <td><span class="badge badge-success">Prestator</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{PRESTATOR.BANK}}">{{PRESTATOR.BANK}}</code></td>
+                            <td>Denumirea băncii</td>
+                            <td><span class="badge badge-success">Prestator</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{PRESTATOR.REP}}">{{PRESTATOR.REP}}</code></td>
+                            <td>Nume reprezentant legal</td>
+                            <td><span class="badge badge-success">Prestator</span></td>
+                        </tr>
+                        
+                        <!-- Date Beneficiar -->
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{BENEFICIAR.NAME}}">{{BENEFICIAR.NAME}}</code></td>
+                            <td>Denumirea/Numele clientului</td>
+                            <td><span class="badge badge-info">Beneficiar</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{BENEFICIAR.ADDRESS}}">{{BENEFICIAR.ADDRESS}}</code></td>
+                            <td>Adresa clientului</td>
+                            <td><span class="badge badge-info">Beneficiar</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{BENEFICIAR.REG}}">{{BENEFICIAR.REG}}</code></td>
+                            <td>Număr Registrul Comerțului</td>
+                            <td><span class="badge badge-info">Beneficiar</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{BENEFICIAR.CUI}}">{{BENEFICIAR.CUI}}</code></td>
+                            <td>Cod Unic de Înregistrare (CUI)</td>
+                            <td><span class="badge badge-info">Beneficiar</span></td>
+                        </tr>
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{BENEFICIAR.REP}}">{{BENEFICIAR.REP}}</code></td>
+                            <td>Nume reprezentant legal</td>
+                            <td><span class="badge badge-info">Beneficiar</span></td>
+                        </tr>
+                        
+                        <!-- Obiect Contract -->
+                        <tr>
+                            <td><code class="copy-variable" style="cursor: pointer;" data-variable="{{OBJECT.LIST}}">{{OBJECT.LIST}}</code></td>
+                            <td>Lista completă cu servicii/produse (format HTML)</td>
+                            <td><span class="badge badge-warning">Obiect</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="alert alert-info mt-3" role="alert">
+                <i class="fas fa-info-circle"></i> <strong>Notă:</strong> Click pe variabilă pentru a o copia automat. Inserați variabilele copiate în documentul Word/HTML al template-ului.
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast pentru confirmare copiere -->
+<div class="position-fixed bottom-0 right-0 p-3" style="z-index: 5; right: 0; bottom: 0;">
+    <div id="copyToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true" data-delay="2000">
+        <div class="toast-header bg-success text-white">
+            <i class="fas fa-check-circle mr-2"></i>
+            <strong class="mr-auto">Copiat!</strong>
+            <button type="button" class="ml-2 mb-1 close text-white" data-dismiss="toast" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        <div class="toast-body">
+            Variabila <strong id="copiedVariable"></strong> a fost copiată în clipboard.
+        </div>
+    </div>
+</div>
+
+
+
+<style>
+.copy-variable:hover {
+    background-color: #e3f2fd;
+    padding: 2px 5px;
+    border-radius: 3px;
+    transition: all 0.2s;
+}
+
+#collapseIcon {
+    transition: transform 0.3s ease;
+}
+</style>		
+		
+		
       </div>
 
       <!-- RIGHT: editor -->
@@ -276,5 +456,50 @@ $(document).on('click','.duplicate', function(){
   // ensure at least one section to start
   if($('#sectionsWrap').children().length===0) $('#btnAddSection').click();
 })();
+</script>
+<script>
+$(document).ready(function() {
+    // Funcție pentru copierea în clipboard
+    $('.copy-variable').on('click', function() {
+        var variableToCopy = $(this).data('variable');
+        
+        // Creează un element temporar pentru copiere
+        var tempInput = document.createElement('input');
+        tempInput.value = variableToCopy;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        
+        // Afișează toast-ul de confirmare
+        $('#copiedVariable').text(variableToCopy);
+        $('#copyToast').toast('show');
+        
+        // Efect vizual pe element
+        $(this).parent().addClass('table-success');
+        setTimeout(() => {
+            $(this).parent().removeClass('table-success');
+        }, 500);
+    });
+    
+    // Hover effect
+    $('.copy-variable').hover(
+        function() {
+            $(this).addClass('text-primary font-weight-bold');
+        },
+        function() {
+            $(this).removeClass('text-primary font-weight-bold');
+        }
+    );
+    
+    // Schimbă iconița când se deschide/închide
+    $('#variablesTableCollapse').on('show.bs.collapse', function () {
+        $('#collapseIcon').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+    });
+    
+    $('#variablesTableCollapse').on('hide.bs.collapse', function () {
+        $('#collapseIcon').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+    });
+});
 </script>
 <?php include_once("WEB-INF/footer.php"); ?>

@@ -33,7 +33,7 @@ $('#contract_offer_id').off('change').on('change', function(){
 
     if (obj) $('#contract_object').val(obj);
     if (of.total_value) $('#contract_total_value').val(toNum(of.total_value).toFixed(2));
-    if (!$('#contract_number').val() && of.offer_number) $('#contract_number').val('CONTRACT-' + of.offer_number);
+    if (!$('#contract_number').val() && of.offer_number) $('#contract_number').val('#' + of.offer_number);
   });
 });
 
@@ -68,6 +68,7 @@ $('#contractForm').on('submit', function(e){
 	  $('#contractModal').modal('hide');
 	  toastr.success(r.message||'Contract salvat.');
 	  showPrintChoice('contract', newId);
+	  loadHistoryData(currentCompanyCUI, currentCompanyCUI);
 	} else {
 	  toastr.error(r.error||'Eroare la salvare.');
 	}
@@ -92,7 +93,7 @@ $(document).on('click','.delete-contract-history', function(){
   };
   $('#deleteModal').modal('show');
 });
-$('#btnAddContractHistory2').on('click', function(){ openContractModal(currentCompanyCUI,currentCompanyName); });
+$('#btnAddContractHistory').on('click', function(){ openContractModal(currentCompanyCUI,currentCompanyName); });
 // open modal
 $(document).on("click", ".import-contact", function () {
   let btn = $(this);

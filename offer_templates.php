@@ -1,4 +1,5 @@
 <?php
+$pageName = "Template-uri oferte";
 require_once __DIR__.'/config.php';
 require_once __DIR__.'/db.php';
 include_once("WEB-INF/menu.php"); 

@@ -1,6 +1,6 @@
 <?php
 include_once("config.php");
-$pageName = "Dashboard";
+$pageName = "Dashboard Evenimente";
 $pageId = 0;
 $pageIds = 1;
 include_once("WEB-INF/menu.php");
@@ -147,6 +147,51 @@ $stmt = $pdo->prepare("SELECT DATE_FORMAT(start, '%Y-%m') as month, COUNT(*) as 
     ORDER BY month ASC");
 $stmt->execute([$user_id]);
 $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
+// Get filter from URL
+$filter = $_GET['filter'] ?? 'all';
+
+// Fetch TODO items based on filter
+$whereClause = "user_id = ? AND type = 'todo'";
+$params = [$user_id];
+
+switch ($filter) {
+    case 'pending':
+        $whereClause .= " AND status = 'pending'";
+        break;
+    case 'completed':
+        $whereClause .= " AND status = 'completed'";
+        break;
+    case 'overdue':
+        $whereClause .= " AND start < NOW() AND status != 'completed'";
+        break;
+    case 'today':
+        $whereClause .= " AND DATE(start) = CURDATE()";
+        break;
+    case 'urgent':
+        $whereClause .= " AND priority IN ('urgent', 'high') AND status != 'completed'";
+        break;
+}
+
+$stmt = $pdo->prepare("SELECT * FROM calendar_events 
+    WHERE $whereClause 
+    ORDER BY FIELD(status, 'pending', 'completed'), 
+             FIELD(priority, 'urgent', 'high', 'medium', 'low'),
+             start ASC");
+$stmt->execute($params);
+$todos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get statistics
+$stmt = $pdo->prepare("SELECT 
+    COUNT(*) as total,
+    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+    SUM(CASE WHEN start < NOW() AND status != 'completed' THEN 1 ELSE 0 END) as overdue,
+    SUM(CASE WHEN DATE(start) = CURDATE() THEN 1 ELSE 0 END) as today,
+    SUM(CASE WHEN priority IN ('urgent', 'high') AND status != 'completed' THEN 1 ELSE 0 END) as urgent
+    FROM calendar_events WHERE user_id = ? AND type = 'todo'");
+$stmt->execute([$user_id]);
+$stats = $stmt->fetch(PDO::FETCH_ASSOC);
+
 ?>
 
 <!-- CSS -->
@@ -210,7 +255,7 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </div>
 
 <!-- Main Content -->
-<section class="content">
+<section class="content" >
     <div class="container-fluid">
         
         <!-- STATISTICS CARDS ROW 1 -->
@@ -243,7 +288,7 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="icon">
                         <i class="fas fa-calendar-alt"></i>
                     </div>
-                    <a href="calendar.php" class="small-box-footer">
+                    <a href="calendar" class="small-box-footer">
                         Vizualizează Calendar <i class="fas fa-arrow-circle-right"></i>
                     </a>
                 </div>
@@ -260,7 +305,7 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <div class="icon">
                         <i class="fas fa-exclamation-triangle"></i>
                     </div>
-                    <a href="calendar.php?filter=urgent" class="small-box-footer">
+                    <a href="calendar?filter=urgent" class="small-box-footer">
                         Vezi Task-uri <i class="fas fa-arrow-circle-right"></i>
                     </a>
                 </div>
@@ -326,7 +371,104 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </div>
             </div>
         </div>
-
+        <!-- TODO LIST -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-list"></i> 
+                            <?php
+                            $filterTitles = [
+                                'all' => 'Toate TODO-urile',
+                                'pending' => 'TODO-uri în Așteptare',
+                                'completed' => 'TODO-uri Completate',
+                                'overdue' => 'TODO-uri Întârziate',
+                                'today' => 'TODO-uri pentru Astăzi',
+                                'urgent' => 'TODO-uri Urgente'
+                            ];
+                            echo $filterTitles[$filter] ?? 'Toate TODO-urile';
+                            ?>
+                        </h3>
+                        <div class="card-tools">
+                            <span class="badge badge-primary"><?= count($todos) ?> rezultate</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <?php if (empty($todos)): ?>
+                            <div class="p-4 text-center text-muted">
+                                <i class="fas fa-clipboard-check fa-3x mb-3"></i>
+                                <p>Nu există TODO-uri pentru acest filtru.</p>
+                                <button class="btn btn-primary" id="btnAddTodoEmpty">
+                                    <i class="fas fa-plus"></i> Adaugă primul TODO
+                                </button>
+                            </div>
+                        <?php else: ?>
+                            <ul class="todo-list" data-widget="todo-list" id="todoList">
+                                <?php foreach ($todos as $todo): 
+                                    $dt = new DateTime($todo['start'], $tz);
+                                    $isOverdue = strtotime($todo['start']) < time() && $todo['status'] != 'completed';
+                                    $isCompleted = $todo['status'] == 'completed';
+                                    $priorityClass = 'priority-' . $todo['priority'];
+                                ?>
+                                <li class="todo-item <?= $priorityClass ?> <?= $isCompleted ? 'completed' : '' ?>" 
+                                    data-id="<?= $todo['id'] ?>">
+                                    <span class="handle">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </span>
+                                    
+                                    <div class="icheck-primary d-inline ml-2">
+                                        <input type="checkbox" 
+                                               value="<?= $todo['id'] ?>" 
+                                               name="todo<?= $todo['id'] ?>" 
+                                               id="todoCheck<?= $todo['id'] ?>"
+                                               <?= $isCompleted ? 'checked' : '' ?>
+                                               onchange="toggleTodoStatus(<?= $todo['id'] ?>, this.checked)">
+                                        <label for="todoCheck<?= $todo['id'] ?>"></label>
+                                    </div>
+                                    
+                                    <span class="text <?= $isCompleted ? 'text-decoration-line-through' : '' ?>">
+                                        <?= e($todo['title']) ?>
+                                    </span>
+                                    
+                                    <?php if ($isOverdue): ?>
+                                        <small class="badge badge-danger">
+                                            <i class="far fa-clock"></i> ÎNTÂRZIAT
+                                        </small>
+                                    <?php else: ?>
+                                        <small class="badge badge-<?php
+                                            $colors = ['urgent' => 'danger', 'high' => 'warning', 'medium' => 'info', 'low' => 'secondary'];
+                                            echo $colors[$todo['priority']] ?? 'info';
+                                        ?>">
+                                            <?= $dt->format('d.m.Y H:i') ?>
+                                        </small>
+                                    <?php endif; ?>
+                                    
+                                    <div class="tools">
+                                        <button class="btn btn-sm btn-info" onclick="viewTodo(<?= $todo['id'] ?>)">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-primary" onclick="editTodo(<?= $todo['id'] ?>)">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="deleteTodo(<?= $todo['id'] ?>)">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </li>
+                                <?php endforeach; ?>
+                            </ul>
+                        <?php endif; ?>
+                    </div>
+                    <div class="card-footer clearfix">
+                        <button type="button" class="btn btn-primary float-right" id="btnAddTodoFooter">
+                            <i class="fas fa-plus"></i> Adaugă TODO
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- MAIN CONTENT ROW -->
         <div class="row">
             <!-- TODAY'S EVENTS -->
@@ -374,7 +516,7 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 <span class="badge badge-info"><?= ucfirst($ev['type']) ?></span>
                                             </small>
                                         </div>
-                                        <a href="calendar.php?date=<?= $dt->format('Y-m-d') ?>" class="btn btn-xs btn-outline-primary">
+                                        <a href="calendar?date=<?= $dt->format('Y-m-d') ?>" class="btn btn-xs btn-outline-primary">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     </div>
@@ -419,7 +561,7 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 </small>
                                             <?php endif; ?>
                                         </div>
-                                        <a href="calendar.php" class="btn btn-xs btn-outline-success">
+                                        <a href="calendar" class="btn btn-xs btn-outline-success">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     </div>
@@ -433,7 +575,7 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
 
         <!-- EMAILS & URGENT TASKS ROW -->
-        <div class="row">
+        <div class="row" style="display:none">
             <!-- LATEST UNREAD EMAILS -->
             <div class="col-lg-6">
                 <div class="card">
@@ -465,7 +607,7 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 <i class="far fa-clock"></i> <?= date('d.m.Y H:i', strtotime($mail['received_at'])) ?>
                                             </small>
                                         </div>
-                                        <a href="read_mail.php?id=<?= (int)$mail['id'] ?>" class="btn btn-xs btn-primary">
+                                        <a href="read_mail?id=<?= (int)$mail['id'] ?>" class="btn btn-xs btn-primary">
                                             <i class="fas fa-envelope-open"></i> Citește
                                         </a>
                                     </div>
@@ -520,7 +662,7 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 <?php endif; ?>
                                             </small>
                                         </div>
-                                        <a href="calendar.php" class="btn btn-xs btn-outline-<?= $priorityBadge ?>">
+                                        <a href="calendar" class="btn btn-xs btn-outline-<?= $priorityBadge ?>">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                     </div>
@@ -571,7 +713,51 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <!-- CONTRACTS & COMPANIES ROW -->
         <div class="row">
             <!-- EXPIRING CONTRACTS -->
-            <div class="col-lg-8">
+
+
+            <!-- RECENT COMPANIES -->
+            <div class="col-lg-4" style="display:none">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-building"></i> Companii recente
+                        </h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <?php if (empty($recentCompanies)): ?>
+                            <div class="p-3 text-center text-muted">
+                                <i class="fas fa-building fa-3x mb-2"></i>
+                                <p>Nu există companii înregistrate</p>
+                            </div>
+                        <?php else: ?>
+                            <ul class="list-group list-group-flush">
+                                <?php foreach ($recentCompanies as $company): ?>
+                                <li class="list-group-item">
+                                    <strong><?= e($company['Name']) ?></strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        CUI: <?= e($company['CUI']) ?>
+                                        <?php if (!empty($company['Adress'])): ?>
+                                        | <i class="fas fa-map-marker-alt"></i> <?= e($company['Adress']) ?>
+                                        <?php endif; ?>
+                                    </small>
+                                </li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <div class="card-footer text-center">
+                                <a href="firms" class="btn btn-sm btn-primary">
+                                    Vezi toate companiile <i class="fas fa-arrow-right"></i>
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MONTHLY TRENDS -->
+        <div class="row">
+		            <div class="col-lg-6">
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">
@@ -616,7 +802,7 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 </span>
                                             </td>
                                             <td>
-                                                <a href="contracts.php?id=<?= (int)$contract['id'] ?>" class="btn btn-xs btn-primary">
+                                                <a href="contracts?id=<?= (int)$contract['id'] ?>" class="btn btn-xs btn-primary">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
                                             </td>
@@ -629,50 +815,7 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </div>
                 </div>
             </div>
-
-            <!-- RECENT COMPANIES -->
-            <div class="col-lg-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">
-                            <i class="fas fa-building"></i> Companii recente
-                        </h3>
-                    </div>
-                    <div class="card-body p-0">
-                        <?php if (empty($recentCompanies)): ?>
-                            <div class="p-3 text-center text-muted">
-                                <i class="fas fa-building fa-3x mb-2"></i>
-                                <p>Nu există companii înregistrate</p>
-                            </div>
-                        <?php else: ?>
-                            <ul class="list-group list-group-flush">
-                                <?php foreach ($recentCompanies as $company): ?>
-                                <li class="list-group-item">
-                                    <strong><?= e($company['Name']) ?></strong>
-                                    <br>
-                                    <small class="text-muted">
-                                        CUI: <?= e($company['CUI']) ?>
-                                        <?php if (!empty($company['Adress'])): ?>
-                                        | <i class="fas fa-map-marker-alt"></i> <?= e($company['Adress']) ?>
-                                        <?php endif; ?>
-                                    </small>
-                                </li>
-                                <?php endforeach; ?>
-                            </ul>
-                            <div class="card-footer text-center">
-                                <a href="firms" class="btn btn-sm btn-primary">
-                                    Vezi toate companiile <i class="fas fa-arrow-right"></i>
-                                </a>
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- MONTHLY TRENDS -->
-        <div class="row">
-            <div class="col-lg-12">
+            <div class="col-lg-6">
                 <div class="card">
                     <div class="card-header">
                         <h3 class="card-title">
@@ -784,6 +927,102 @@ $monthlyTrends = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     </div>
 </section>
+<!-- ADD/EDIT TODO MODAL -->
+<div class="modal fade" id="todoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title text-white" id="todoModalTitle">
+                    <i class="fas fa-plus"></i> Adaugă TODO
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="todoForm">
+                <div class="modal-body">
+                    <input type="hidden" id="todo_id" name="todo_id">
+                    
+                    <div class="form-group">
+                        <label for="todo_title">Titlu <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="todo_title" name="title" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="todo_description">Descriere</label>
+                        <textarea class="form-control" id="todo_description" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="todo_start">Data și Ora Scadență <span class="text-danger">*</span></label>
+                                <input type="datetime-local" class="form-control" id="todo_start" name="start" required>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="todo_priority">Prioritate</label>
+                                <select class="form-control" id="todo_priority" name="priority">
+                                    <option value="low">Scăzută</option>
+                                    <option value="medium" selected>Medie</option>
+                                    <option value="high">Ridicată</option>
+                                    <option value="urgent">Urgentă</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="todo_location">Locație</label>
+                        <input type="text" class="form-control" id="todo_location" name="location">
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="todo_all_day" name="all_day">
+                            <label class="custom-control-label" for="todo_all_day">Toată ziua</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times"></i> Anulează
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Salvează
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- VIEW TODO MODAL -->
+<div class="modal fade" id="viewTodoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title text-white">
+                    <i class="fas fa-eye"></i> Detalii TODO
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="viewTodoContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Închide</button>
+                <button type="button" class="btn btn-primary" onclick="editTodoFromView()">
+                    <i class="fas fa-edit"></i> Editează
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 
 
@@ -994,6 +1233,202 @@ setTimeout(() => {
     });
 }, 500);
 </script>
+<script>
+let currentViewTodoId = null;
+
+$(function() {
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+    
+    // Add TODO button handlers
+    $('#btnAddTodo, #btnAddTodoEmpty, #btnAddTodoFooter').on('click', function() {
+        openTodoModal();
+    });
+    
+    // Form submission
+    $('#todoForm').on('submit', function(e) {
+        e.preventDefault();
+        saveTodo();
+    });
+});
+
+function filterTodos(filter) {
+    window.location.href = 'todos.php?filter=' + filter;
+}
+
+function openTodoModal(todoId = null) {
+    if (todoId) {
+        // Load TODO data for editing
+        $.get('api/get_todo.php', { id: todoId }, function(response) {
+            if (response.success) {
+                const todo = response.data;
+                $('#todoModalTitle').html('<i class="fas fa-edit"></i> Editează TODO');
+                $('#todo_id').val(todo.id);
+                $('#todo_title').val(todo.title);
+                $('#todo_description').val(todo.description || '');
+                $('#todo_start').val(todo.start.replace(' ', 'T'));
+                $('#todo_priority').val(todo.priority);
+                $('#todo_location').val(todo.location || '');
+                $('#todo_all_day').prop('checked', todo.all_day == 1);
+                $('#todoModal').modal('show');
+            } else {
+                toastr.error(response.error || 'Eroare la încărcare');
+            }
+        }, 'json');
+    } else {
+        // New TODO
+        $('#todoModalTitle').html('<i class="fas fa-plus"></i> Adaugă TODO');
+        $('#todoForm')[0].reset();
+        $('#todo_id').val('');
+        
+        // Set default date to now
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        $('#todo_start').val(now.toISOString().slice(0, 16));
+        
+        $('#todoModal').modal('show');
+    }
+}
+
+function saveTodo() {
+    const formData = {
+        id: $('#todo_id').val(),
+        title: $('#todo_title').val(),
+        description: $('#todo_description').val(),
+        start: $('#todo_start').val().replace('T', ' ') + ':00',
+        priority: $('#todo_priority').val(),
+        location: $('#todo_location').val(),
+        all_day: $('#todo_all_day').is(':checked') ? 1 : 0,
+        type: 'todo'
+    };
+    
+    const url = formData.id ? 'api/update_todo.php' : 'api/create_todo.php';
+    
+    $.post(url, formData, function(response) {
+        if (response.success) {
+            toastr.success(formData.id ? 'TODO actualizat cu succes!' : 'TODO adăugat cu succes!');
+            $('#todoModal').modal('hide');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            toastr.error(response.error || 'Eroare la salvare');
+        }
+    }, 'json').fail(function() {
+        toastr.error('Eroare de comunicare cu serverul');
+    });
+}
+
+function editTodo(id) {
+    openTodoModal(id);
+}
+
+function viewTodo(id) {
+    currentViewTodoId = id;
+    
+    $.get('api/get_todo.php', { id: id }, function(response) {
+        if (response.success) {
+            const todo = response.data;
+            const priorityColors = {
+                urgent: 'danger',
+                high: 'warning',
+                medium: 'info',
+                low: 'secondary'
+            };
+            
+            const html = `
+                <div class="row">
+                    <div class="col-md-12">
+                        <h4>${todo.title}</h4>
+                        <hr>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>Prioritate:</strong><br>
+                        <span class="badge badge-${priorityColors[todo.priority]}">${todo.priority.toUpperCase()}</span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Status:</strong><br>
+                        <span class="badge badge-${todo.status === 'completed' ? 'success' : 'warning'}">
+                            ${todo.status === 'completed' ? 'COMPLETAT' : 'ÎN AȘTEPTARE'}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <strong>Scadență:</strong><br>
+                        ${new Date(todo.start).toLocaleString('ro-RO')}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Creat la:</strong><br>
+                        ${new Date(todo.created_at).toLocaleString('ro-RO')}
+                    </div>
+                </div>
+                
+                ${todo.location ? `
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <strong>Locație:</strong><br>
+                        <i class="fas fa-map-marker-alt"></i> ${todo.location}
+                    </div>
+                </div>
+                ` : ''}
+                
+                ${todo.description ? `
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <strong>Descriere:</strong><br>
+                        <div class="border p-3 bg-light rounded">${todo.description}</div>
+                    </div>
+                </div>
+                ` : ''}
+            `;
+            
+            $('#viewTodoContent').html(html);
+            $('#viewTodoModal').modal('show');
+        } else {
+            toastr.error(response.error || 'Eroare la încărcare');
+        }
+    }, 'json');
+}
+
+function editTodoFromView() {
+    $('#viewTodoModal').modal('hide');
+    setTimeout(() => editTodo(currentViewTodoId), 300);
+}
+
+function toggleTodoStatus(id, isCompleted) {
+    $.post('api/task_actions.php', {
+        action: isCompleted ? 'complete' : 'uncomplete',
+        task_id: id
+    }, function(response) {
+        if (response.success) {
+            toastr.success(response.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            toastr.error(response.error || 'Eroare');
+            location.reload();
+        }
+    }, 'json');
+}
+
+function deleteTodo(id) {
+    if (confirm('Sigur dorești să ștergi acest TODO?')) {
+        $.post('api/task_actions.php', {
+            action: 'delete',
+            task_id: id
+        }, function(response) {
+            if (response.success) {
+                toastr.success('TODO șters cu succes!');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                toastr.error(response.error || 'Eroare la ștergere');
+            }
+        }, 'json');
+    }
+}
+</script>
 
 <style>
 @media print {
@@ -1010,4 +1445,42 @@ setTimeout(() => {
     }
 }
 </style>
+<script>
+$(function() {
+    // Show smart notifications
+    <?php if ($overdueCount > 0): ?>
+    setTimeout(() => {
+        toastr.error('Ai <?= $overdueCount ?> task-uri întârziate!', 'Atenție', {
+            timeOut: 7000,
+            closeButton: true
+        });
+    }, 1000);
+    <?php endif; ?>
+
+    <?php if ($emailStats['unread_today'] > 5): ?>
+    setTimeout(() => {
+        toastr.info('Ai <?= $emailStats['unread_today'] ?> email-uri noi astăzi', 'Email-uri', {
+            timeOut: 5000,
+            closeButton: true
+        });
+    }, 2000);
+    <?php endif; ?>
+
+    <?php if (count($nextEvents) > 0 && !empty($nextEvents[0])): 
+        $nextEvent = $nextEvents[0];
+        $minutesUntil = round((strtotime($nextEvent['start']) - time()) / 60);
+        if ($minutesUntil <= 30 && $minutesUntil > 0):
+    ?>
+    setTimeout(() => {
+        toastr.warning('<?= e($nextEvent['title']) ?> începe în <?= $minutesUntil ?> minute!', 'Eveniment Aproape', {
+            timeOut: 10000,
+            closeButton: true
+        });
+    }, 3000);
+    <?php endif; endif; ?>
+
+
+});
+</script>
+
 <?php include_once("WEB-INF/footer.php"); ?>

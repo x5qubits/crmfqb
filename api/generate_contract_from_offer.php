@@ -23,7 +23,7 @@ try {
     $items = $items_stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Generate contract number
-    $contract_number = 'CONTRACT-' . $offer['offer_number'];
+    $contract_number = '#' . $offer['offer_number'];
     
     // Build object
     //$object = "Conform ofertei " . $offer['offer_number'] . ":\n\n";
